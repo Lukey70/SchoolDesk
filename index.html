@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en-AU">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="description" content="SchoolDesk — a connected workspace for teaching, attendance and student care.">
+  <meta name="theme-color" content="#183f36">
+  <title>SchoolDesk · Teacher workspace</title>
+  <link rel="icon" href="assets/icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="styles.css">
+  <script defer src="core.js"></script>
+  <script defer src="app.js"></script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+  <aside id="sidebar" class="sidebar" aria-label="Main navigation"></aside>
+  <div class="workspace">
+    <header class="topbar">
+      <button class="icon-button mobile-menu" id="menu-button" aria-label="Toggle navigation" aria-expanded="false"></button>
+      <div class="breadcrumb">Workspace <span>/</span> <strong id="breadcrumb">Overview</strong></div>
+      <button class="search-launch" id="search-launch"><span id="search-icon"></span><span>Find a student…</span><kbd>/</kbd></button>
+      <div class="topbar-right"><span class="demo-pill"><i></i> Demo workspace</span><button class="avatar teacher-avatar" id="profile-button" aria-label="Workspace settings">LM</button></div>
+    </header>
+    <div id="storage-warning" class="storage-warning" role="alert" hidden></div>
+    <main id="main" tabindex="-1"></main>
+    <footer>SchoolDesk <span>·</span> Your everyday teaching workspace <span class="footer-right">Version 1.0 · Browser storage</span></footer>
+  </div>
+  <dialog id="dialog" aria-labelledby="dialog-title"></dialog>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <input id="restore-input" type="file" accept=".json,application/json" hidden>
+  <noscript>This app needs JavaScript enabled. Your data stays in this browser.</noscript>
+</body>
+</html>
