@@ -16,7 +16,7 @@ test('calendar helpers use calendar dates across month, year and DST boundaries'
  assert.equal(D.weekStart('2026-10-18'),'2026-10-12');
 });
 test('grade boundaries, zero and unmarked scores have different meanings',()=>{
- for(const [score,expected]of [[80,'A'],[79.9,'B'],[65,'B'],[64.9,'C'],[50,'C'],[49.9,'D'],[35,'D'],[34.9,'E'],[0,'E'],['','—'],[null,'—'],[undefined,'—']])assert.equal(D.grade(score,100),expected);
+ for(const [score,expected]of [[100,'A'],[75,'A'],[74.99,'B'],[65,'B'],[64.9,'C'],[50,'C'],[49.9,'D'],[35,'D'],[34.9,'E'],[15,'E'],[14.99,'F'],[0,'F'],['','—'],[null,'—'],[undefined,'—']])assert.equal(D.grade(score,100),expected);
 });
 test('attendance counts Present and Late and can filter to one student',()=>{
  const s=seeded(),sum=D.attendanceSummary(s);assert.equal(sum.total,12);assert.equal(sum.Present,10);assert.equal(sum.Late,1);assert.equal(sum.Absent,1);assert.equal(sum.rate,92);
@@ -37,17 +37,17 @@ test('rejects duplicate IDs and student numbers',()=>{
 });
 test('rejects orphaned class, assessment, pastoral and attendance references',()=>{
  for(const change of [s=>s.classes[0].studentIds.push('missing'),s=>s.assessments[0].classId='missing',s=>s.notes[0].studentId='missing',s=>s.attendance[0].rows.missing={status:'Present',comment:''}]){
- const s=seeded();change(s);assert.throws(()=>D.validateState(s),/Invalid backup/);
+ const s=seeded();change(s);assert.throws(()=>D.validateState(s),/Invalid workspace/);
  }
 });
 test('rejects invalid dates, times, sessions and statuses',()=>{
- for(const change of [s=>s.assessments[0].due='2026-02-30',s=>s.plans[0].date='not-a-date',s=>s.lessons[0].start='28:00',s=>s.lessons[0].end=s.lessons[0].start,s=>s.lessons[0].day=6,s=>s.attendance[0].session='Noon',s=>s.attendance[0].rows.s1.status='Missing']){
- const s=seeded();change(s);assert.throws(()=>D.validateState(s),/Invalid backup/);
+ for(const change of [s=>s.assessments[0].due='2026-02-30',s=>s.plans[0].date='not-a-date',s=>s.periods[0].start='28:00',s=>s.periods[0].end=s.periods[0].start,s=>s.lessons[0].day=6,s=>s.attendance[0].periodId='Noon',s=>s.attendance[0].rows.s1.status='Missing']){
+ const s=seeded();change(s);assert.throws(()=>D.validateState(s),/Invalid workspace/);
  }
 });
 test('overlapping timetable sessions fail, adjoining sessions are valid',()=>{
- let s=seeded();s.lessons.push({id:'extra',classId:'c1',day:1,start:'09:30',end:'10:30',room:'H2'});assert.throws(()=>D.validateState(s),/overlap/);
- s=seeded();s.lessons.push({id:'extra',classId:'c1',day:1,start:'10:00',end:'10:20',room:'H2'});assert.equal(D.validateState(s),s);
+ let s=seeded();s.lessons.push({id:'extra',classId:'c1',day:1,periodId:'p1',room:'H2'});assert.throws(()=>D.validateState(s),/overlap/);
+ s=seeded();s.lessons.push({id:'extra',classId:'c1',day:1,periodId:'p3',room:'H2'});assert.equal(D.validateState(s),s);
 });
 test('out-of-range, non-numeric and non-finite marks fail validation',()=>{
  for(const mark of [-1,31,NaN,Infinity,'20',null]){const s=seeded();s.assessments[0].marks.s1=mark;assert.throws(()=>D.validateState(s),/marks/);}
@@ -64,7 +64,7 @@ test('failed validation and failed writes leave the original state intact',()=>{
  storage.setItem=()=>{throw new Error('Quota exceeded')};assert.throws(()=>store.commit(s=>s.settings.school='Unsaved'),/Could not save/);assert.equal(JSON.stringify(store.data),before);
 });
 test('corrupt saved data is not overwritten until explicit restore or reset',()=>{
- const storage=memory();storage.raw='{broken';const store=new D.Store(storage);assert.equal(store.blocked,true);assert.throws(()=>store.commit(s=>s.settings.school='Accidental overwrite'),/Restore/);assert.equal(storage.raw,'{broken');store.commit(seeded(),true);assert.equal(store.blocked,false);assert.doesNotThrow(()=>D.parseBackup(storage.raw));
+ const storage=memory();storage.raw='{broken';const store=new D.Store(storage);assert.equal(store.blocked,true);assert.throws(()=>store.commit(s=>s.settings.school='Accidental overwrite'),/restore/i);assert.equal(storage.raw,'{broken');store.commit(seeded(),true);assert.equal(store.blocked,false);assert.doesNotThrow(()=>D.parseBackup(storage.raw));
 });
 test('blocked storage degrades to a clearly flagged temporary workspace',()=>{
  const store=new D.Store({getItem(){throw new Error('Blocked')}});assert.ok(store.warning.includes('temporary'));store.commit(s=>s.settings.school='Temporary School');assert.equal(store.data.settings.school,'Temporary School');

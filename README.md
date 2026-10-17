@@ -1,97 +1,167 @@
-# SchoolDesk
+# SchoolDesk 2.0
 
-An original, standalone teacher workspace inspired by the kinds of daily workflows found in SEQTA Teach. SchoolDesk is independent of SEQTA and Tes and does not reproduce their branding, source code or proprietary interface.
+An original, standalone teacher workspace inspired by everyday school workflows. SchoolDesk is independent of SEQTA and Tes.
 
-**This first version is a working single-user prototype.** It starts with 16 fictional students and four classes. It stores records in your browser, with JSON backup/restore and CSV exports. It has no staff login or shared database.
+This is a working **single-user prototype** using fictional student records. It runs on GitHub Pages without installation, a backend or API keys. Saved records stay in this browser; use JSON backups to move them to another browser or device.
 
-## Start here
+## What changed in version 2
 
-1. Extract the ZIP.
-2. Open the `schooldesk` folder.
-3. Double-click `index.html` to try it in a modern browser. If browser file restrictions prevent saving or loading, use the local server below or GitHub Pages.
-4. Open **Settings & data** to change the school name and your display name.
-5. Export a backup before clearing browser data or changing devices.
+- Five colour schemes in Settings: Forest, Ocean, Plum, Slate and Terracotta.
+- Configurable school years, terms, school holiday ranges and public holidays.
+- A period-based timetable: Homeroom, Period 1, Period 2, Recess, Period 3, Period 4, Lunch, Period 5, Period 6. Start/end times are editable in Settings.
+- Holiday columns show **School Holidays** or **Public Holiday** instead of classes.
+- **Special Timetable** replaces one specific date, keeping recurring classes and other dates unchanged.
+- Clicking a timetabled class opens **Attendance**, **Marksbook** or **Lesson Plan** for that class/date.
+- Term attendance grids generated from the timetable, with icon-based marking and student-screen attendance overrides.
+- Full-year marksbooks with a score/percentage pair for every assessment, followed by overall percentage and grade.
+- Daily and weekly lesson-planner views with an entry for every timetabled class session.
+- Automatic upgrades from version 1, with existing student records, results, notes and saved plans retained.
 
-For more consistent local storage, serve the folder locally using Python 3:
+## Run locally
+
+Open `index.html` in a modern browser. For consistent browser storage, use Python 3 to serve this folder:
 
 ```bash
-cd schooldesk
 python -m http.server 8000
 ```
 
-Open <http://localhost:8000>. On Windows, `py -m http.server 8000` may be the appropriate command. No npm install, API key or build step is needed to run the app.
+Then open <http://localhost:8000>. On Windows, `py -m http.server 8000` may be appropriate. No `npm install` or build step is needed to run the app.
 
-## Upload to GitHub and publish
+## GitHub Pages
 
-1. Create a new repository, for example `schooldesk`.
-2. Extract the ZIP first. In the repository, choose **Add file → Upload files**.
-3. Upload the **contents inside** the extracted `schooldesk` folder. Include the `assets` folder. `index.html` must appear at the top level of the repository, alongside `app.js`, `core.js` and `styles.css`. Uploading the ZIP itself does not publish the app.
-4. Commit the files to the `main` branch.
-5. Go to **Settings → Pages**.
-6. Under **Build and deployment**, choose **Deploy from a branch**.
-7. Choose branch **main**, folder **/(root)**, and save.
-8. When GitHub finishes publishing, open the URL shown there. A project repository normally uses `https://YOUR-USERNAME.github.io/schooldesk/`.
+Keep `index.html`, `app.js`, `core.js`, `legacy.js`, `styles.css` and `assets/` at the repository root. In **Settings → Pages**, choose **Deploy from a branch**, branch **main**, folder **/(root)**. Keep the included `.nojekyll` file.
 
-A public repository is the simplest option when using GitHub Free; private-repository Pages availability depends on your plan. The included `.nojekyll` file disables Jekyll processing. If your uploader hides files beginning with a dot, you can add an empty `.nojekyll` file using GitHub's **Add file → Create new file**. The plain app assets also work without a build.
+For this repository, the expected project URL is <https://lukey70.github.io/SchoolDesk/> **after Pages is enabled and deployment succeeds**. Committing the source alone does not enable Pages.
 
-Official guidance:
+Official documentation: [Configure a publishing source](https://docs.github.com/en/pages/getting-started-with-github-pages/configuring-a-publishing-source-for-your-github-pages-site).
 
-- [Configure a GitHub Pages publishing source](https://docs.github.com/en/pages/getting-started-with-github-pages/configuring-a-publishing-source-for-your-github-pages-site)
-- [Create a GitHub Pages site](https://docs.github.com/en/pages/getting-started-with-github-pages/creating-a-github-pages-site)
+## Set up your calendar first
 
-## What works
+Open **Settings & school calendar**:
 
-| Area | Included behaviour |
+1. Choose a colour scheme and update the school/staff display details.
+2. Edit or add **School years**, then define **School terms** inside each year.
+3. Add **School Holidays** or **Public Holiday** date ranges where needed. Both start and end dates are inclusive.
+4. Adjust the nine period times. Periods must remain in order and cannot overlap; recess and lunch remain breaks.
+5. Add recurring classes from the timetable. Only one class can occupy each teaching period in this teacher's timetable.
+
+**The pre-filled dates are editable demonstration dates, not a verified official school calendar.** Configure your school's dates before relying on them.
+
+Dates outside a school year have no classes. Weekends have no classes. Dates inside a school year but outside its terms are automatically School Holidays. Explicit holidays can close dates inside a term; Public Holiday takes precedence over School Holidays when they overlap. Week numbers are calendar weeks starting on Monday, with the week containing the term start treated as Week 1.
+
+### Special Timetable
+
+Use **Settings → Special Timetable** or the timetable's **Special Timetable** button. Select a date, enter a label, then choose a class or school event for each teaching period. You can copy the regular weekday's classes as a starting point.
+
+- Only the selected date changes.
+- An empty period has no class that day. An entirely empty Special Timetable cancels all classes for that date.
+- School events can have a title and room without a class roster. They appear on the timetable but do not create a class attendance roll or lesson-plan entry.
+- School/public holidays, weekends and dates outside terms still take precedence over special sessions.
+- Remove the special date to return that day to its regular timetable.
+
+## Attendance
+
+Choose a **class** and **term**. Students appear down the left, with timetabled class sessions across the columns. Headers show the day, period, date, term and week. Holiday closures do not create attendance columns; Special Timetable sessions replace that day's normal columns.
+
+| Action | Result |
 | --- | --- |
-| Overview | Connected student counts, saved attendance summary, upcoming assessments, scheduled classes, notices and open follow-ups |
-| Students | Search and filter, create and edit records, caregiver details, support notes, archive/reactivate, profile history and filtered CSV export |
-| My classes | Create/edit classes, select student rosters, choose colours, access rolls and lesson plans |
-| Attendance | Separate roll for each class, date and morning/afternoon session; Present/Absent/Late/Excused; comments; mark all present; explicit save; export all saved rolls |
-| Lesson planner | Create, view, edit, duplicate and delete plans with learning intentions, lesson sequences and resources |
-| Assessments | Create/edit/delete tasks, record decimal marks, calculate percentages/grades, keep zero distinct from unmarked, save and export results |
-| Timetable | Edit a recurring Monday–Friday timetable, prevent overlapping sessions, browse weeks and print |
-| Pastoral care | Create/edit records, link them to student profiles, search/filter, close and reopen follow-ups |
-| Noticeboard | Create, edit and delete local notices by category |
-| Settings | School/staff display preferences, JSON backup/restore, explicit demo reset |
+| Click an unmarked square | Blue tick: Present |
+| Click Present | Red cross: Absent |
+| Click Absent again | Present |
+| Shift-click an editable square | Blue tick with a green L: Late |
+| Alt-click an editable square | Clear the mark |
+| Hover or focus an icon | Attendance name via tooltip/accessibility label |
 
-Student profiles connect class membership, attendance, assessment results and pastoral history. Archiving a student removes them from new rolls/current marksbooks while retaining earlier records. Removing someone from a class does not erase historical marks or saved rolls.
+Choose **Save attendance** to persist edits. You can mark individual students without completing every square. Unsaved changes prompt before navigating away.
 
-### Attendance and marks
+Click a column header, or use the date/period controls, to select a lesson. **Mark selected lesson present** fills current active class members for that lesson and skips protected entries.
 
-- Choose a status for **every student** before saving a roll.
-- A previously saved roll keeps its original student roster. New students added later appear on newly created rolls.
-- Changing the class/date/session opens a different roll. Reopen a saved roll by selecting those same values.
-- **Present + Late** divided by all recorded statuses gives the displayed attendance rate. This is a simple demonstration calculation, not a jurisdiction-specific attendance return.
-- Mark entry is saved only when you choose **Save marks**. Clearing a mark makes it unmarked; a saved zero is a result.
-- Default grades: A ≥ 80%, B ≥ 65%, C ≥ 50%, D ≥ 35%, E < 35%. The thresholds live in `core.js` and are not an official school grading policy.
-- CSV exports contain saved data. Save any draft marks before exporting. Student CSV exports follow your current directory filters.
+### Student-screen attendance types
 
-### Storage and backups
+Open a student profile and choose **Manage student attendance**. Set a start/end date and choose all-day coverage (leave every period unchecked) or specific periods. Overlapping records for the same student, dates and periods are rejected.
 
-- Records use `localStorage` under key `schooldesk.v1`, scoped to this browser profile and site origin. Multiple copies hosted under the same origin share that key.
-- Refreshing the same site keeps saved changes. A different browser, private window, domain or device starts separately.
-- Opening the app from a local file and opening its GitHub Pages URL use different storage. Move your records with **Download backup → Restore backup**.
-- Backups include the complete workspace. Restore validates records and relationships, then asks before replacing current data.
-- Corrupt saved data is preserved until you explicitly restore/reset. Storage-write failures do not silently discard the previous saved state.
-- If another tab modifies the workspace, saving is blocked in the older tab until you reload or explicitly restore/reset.
-- No app data is sent to a server. Clearing browser storage deletes local records; keep backups somewhere safe. Downloaded backups and CSV files are plain text, so handle them accordingly.
+Supported types, with distinct icons:
 
-## Project files
+- Alternate programme
+- Camp
+- Excursion
+- Late/Medical
+- Medical
+- Music lesson
+- Sick bay
+- Suspended (External)
+- Suspended (Internal)
+
+These records override class marks for their date/period range and are **read-only in the class attendance grid**, including during Shift-click or bulk marking. Edit or remove them from the student screen. Removing an override reveals any underlying saved teacher mark.
+
+The overview/profile attendance rate uses Present + Late divided by all saved marks, including legacy records. It is a simple demonstration statistic, not a jurisdiction-specific attendance return. Other attendance types are not automatically treated as Present for that statistic.
+
+## Yearly marksbook
+
+Choose a **class** and **school year**. All assignments belonging to that class/year appear side by side, including tasks due earlier or later in the year. Each task has:
+
+- An editable score out of its maximum.
+- An automatically calculated percentage beside it.
+
+The final two columns always show **Overall Percentage** and **Overall Grade**. Click an assessment heading to edit its title, due date, maximum, year or description. A maximum cannot be reduced below an existing recorded score.
+
+**Overall calculation:** sum of earned marks divided by sum of maximum marks for tasks with a recorded score. Blank tasks are excluded. A zero is a result and is included. This is a points-based calculation; there are no separate assessment weightings.
+
+| Grade | Unrounded percentage |
+| --- | --- |
+| A | 75% and above |
+| B | 65% to below 75% |
+| C | 50% to below 65% |
+| D | 35% to below 50% |
+| E | 15% to below 35% |
+| F | Below 15% |
+
+Displayed percentages use up to two decimals. Grades use the unrounded percentage. Choose **Save marks** to persist edits. CSV export includes the selected year's saved marks, percentages and overall results, including historical results for students no longer on the active roster.
+
+## Lesson planner
+
+Switch between **Daily** and **Weekly**, choose a date, and optionally filter by class. Every actual timetabled class session has its own plan entry, even before you write the plan. Open an entry to add its title, learning intention, activities and resources.
+
+Plans are linked to a date, class and period. Two sessions of the same class on one day have separate entries. Timetable links open the relevant saved plan or a new plan for that session. New plans must belong to a timetabled class session, and duplicate plans for one session are prevented.
+
+The planner respects term dates, holidays and Special Timetable changes. Previously saved plans remain available in **Saved plans outside the current timetable** for their date range if their session is removed or closed. You can edit, duplicate or remove saved plans.
+
+## Existing features retained
+
+Student search/filtering, caregiver details, support notes, archiving/reactivation, connected profiles, class roster editing, pastoral records and follow-ups, local notices, JSON backup/restore, CSV exports and responsive navigation.
+
+## Upgrading from version 1
+
+The existing storage key, `schooldesk.v1`, is deliberately retained. Old workspaces are read and validated, then upgraded in memory. The next successful save stores version 2; original saved bytes remain untouched until then. Version 1 JSON backups also upgrade on restore.
+
+- Old free-time timetable sessions map to the nearest available teaching period on the same weekday. **Review period assignments and times after upgrading.**
+- A previous morning/afternoon roll maps to a dated period only when the match is unambiguous and all statuses are supported. Otherwise it remains a retained legacy roll, visible in attendance summaries and CSV exports.
+- Previous lesson plans link to matching dated class sessions where possible. Additional or unmatched plans are retained outside the timetable.
+- Grades now follow the new thresholds; stored raw scores are preserved.
+- Saved attendance for sessions removed by a later timetable/calendar edit is retained and exported, even though those sessions no longer appear as current term columns.
+- If upgrade fails, the original data is preserved, editing is blocked and a warning is shown. **Export original saved data** in Settings before investigating or resetting.
+
+## Storage and limitations
+
+Records remain in `localStorage`, scoped to the browser profile and site origin. Multiple SchoolDesk copies on the same origin share the same storage key. Switching browser/device/domain or moving from a local file to GitHub Pages requires backup/restore.
+
+Downloads are plain JSON/CSV files. Restoring validates records and relationships and asks before replacing the workspace. Invalid imports and failed writes leave previous saved data intact. If another tab changes or clears the workspace, saving in the older tab is blocked until you reload or explicitly restore/reset.
+
+This is a fictional-data prototype with **no staff authentication, permissions or shared database**. Use approved hosting, server-backed storage, access controls and secure data handling before a real-school rollout. Messaging, parent/student portals, integrations and official reporting compliance are not included.
+
+## Source and verification
 
 | File | Purpose |
 | --- | --- |
-| `index.html` | App entry point and accessible page shell |
-| `styles.css` | Original responsive layout, theme and print styles |
-| `app.js` | Screens, forms, navigation and user interactions |
-| `core.js` | Demo records, storage, schema checks, calendar helpers, grades and CSV generation |
+| `index.html` | Entry point and accessible page shell |
+| `styles.css` | Themes, responsive layouts, grids and print styles |
+| `app.js` | Screens, forms, navigation and interaction handling |
+| `core.js` | Calendar/session logic, grades, validation, migration and storage |
+| `legacy.js` | Version 1 reader and demo generator for compatible upgrades |
 | `assets/icon.svg` | Original SchoolDesk icon |
-| `tests/` | Dependency-free domain and runtime integration checks |
-| `.nojekyll` | Static GitHub Pages hosting |
-| `package.json` | Optional Node test and syntax-check scripts |
+| `tests/` | Domain, migration and runtime workflow checks |
 
-All asset links are relative, so repository subpaths work. Navigation uses URL hashes and needs no server redirects. The app uses system fonts, local assets and no third-party scripts or network APIs.
-
-## Developer checks
+All assets are local and relative. Navigation uses hashes, so repository subpaths require no rewrite rules. There are no third-party scripts or network APIs.
 
 Node.js 20 or newer:
 
@@ -100,12 +170,4 @@ npm test
 npm run check
 ```
 
-There are 26 automated tests covering connected demo data, dates, grade boundaries, CSV escaping, import validation, storage behaviour, workflow rendering and form submissions. The runtime integration tests use a small DOM harness. They are **not** a real-browser layout/accessibility test. Visual browser QA was unavailable in the creation environment.
-
-Before publishing or extending, manually check desktop/mobile navigation, search, a new student, roster edits, a saved roll and reload, zero/blank marks, timetable edits, and JSON backup/restore in your target browser. Check print output before relying on it.
-
-## Taking it beyond a prototype
-
-For a shared school system, the next stage is a server-backed database and staff authentication with role-based permissions. Add server-side validation, audit history, approved data retention, secure backups, and access controls before using real student or family information. Browser-only storage and a public static site are not a suitable production student-record system.
-
-Messaging, parent/student portals, file uploads, integrations, reporting compliance, holiday calendars and rotating timetable cycles are not included in this version.
+The suite contains **64 automated checks**, covering all requested workflows, migration, validation and persistence. Runtime tests use a minimal DOM harness, not a browser. **Visual browser/layout QA was unavailable in the build environment.** Check your target browser and print output before relying on them.
