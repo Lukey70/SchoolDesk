@@ -1,235 +1,178 @@
-/* SchoolDesk v2: shared calendar, dated lessons, attendance and marks. */
-(function (root, factory) {
-  const api = factory(typeof module === 'object' && module.exports ? require('./legacy.js') : root.SchoolDeskLegacy);
-  if (typeof module === 'object' && module.exports) module.exports = api;
-  else root.SchoolDesk = api;
-})(typeof globalThis !== 'undefined' ? globalThis : this, function (L) {
-  'use strict';
-  const VERSION = 2;
-  // Keep the existing key so v1 workspaces upgrade in place.
-  const STORAGE_KEY = L.STORAGE_KEY;
-  const { clone, uid, isoDate, shiftDate, weekStart, csv, CATEGORIES } = L;
-  const STATUSES = ['Present', 'Absent', 'Late'];
-  const ABSENCE_TYPES = ['Alternate programme', 'Camp', 'Excursion', 'Late/Medical', 'Medical', 'Music lesson', 'Sick bay', 'Suspended (External)', 'Suspended (Internal)'];
-  const THEMES = { forest:'Forest', ocean:'Ocean', plum:'Plum', slate:'Slate', terracotta:'Terracotta' };
-  const DEFAULT_PERIODS = [
-    ['homeroom','Homeroom','08:40','09:00',false],
-    ['p1','Period 1','09:00','09:50',false],
-    ['p2','Period 2','09:50','10:40',false],
-    ['recess','Recess','10:40','11:00',true],
-    ['p3','Period 3','11:00','11:50',false],
-    ['p4','Period 4','11:50','12:40',false],
-    ['lunch','Lunch','12:40','13:20',true],
-    ['p5','Period 5','13:20','14:10',false],
-    ['p6','Period 6','14:10','15:00',false]
-  ].map(([id,name,start,end,isBreak])=>({id,name,start,end,isBreak}));
-  const dateValid = d => typeof d === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(d) && !Number.isNaN(Date.parse(d+'T12:00:00')) && isoDate(new Date(d+'T12:00:00')) === d;
-  const inRange = (d, r) => d >= r.start && d <= r.end;
-  const overlap = (a,b) => a.start <= b.end && b.start <= a.end;
-  const yearAt = (s,d) => s.calendar.years.find(y=>inRange(d,y));
-  const termAt = (s,d) => s.calendar.terms.find(t=>inRange(d,t));
-  const periodAt = (s,id) => s.periods.find(p=>p.id===id);
-  const sessionKey = (date,classId,periodId) => `${date}|${classId}|${periodId}`;
-  const attendanceKey = sessionKey;
-  const planKey = sessionKey;
-  function grade(score, max=100) {
-    if(score === '' || score === undefined || score === null || !Number.isFinite(Number(score)) || !(max>0)) return '—';
-    const p=Number(score)/max*100;
-    return p>=75?'A':p>=65?'B':p>=50?'C':p>=35?'D':p>=15?'E':'F';
+/* SchoolDesk v3 domain: dated enrolments, stable history and shared calculations. */
+(function(root,factory){
+  const api=factory(typeof module==='object'&&module.exports?require('./core-v2.js'):root.SchoolDeskV2);
+  if(typeof module==='object'&&module.exports)module.exports=api;else root.SchoolDesk=api;
+})(typeof globalThis!=='undefined'?globalThis:this,function(B){
+'use strict';
+const {clone,uid,isoDate,dateValid,shiftDate}=B,VERSION=3,STORAGE_KEY=B.STORAGE_KEY;
+const PALETTE={sage:'#dcebd3',peach:'#f6dfcc',lavender:'#e5dcf5',blue:'#d8e9f7'};
+const shades=['#f8d9db','#efc0c8','#e4abb9','#f7d3e7','#e8c3e9','#d7c4ef','#c9c8f1','#c4d5f6','#c2e0f4','#bde7ed','#bde7df','#c9e6d4','#d7e9be','#e5ecb9','#f1ebbb','#fae6b9','#f8d4b2','#efc6b3','#e1c5b6','#d8ccbd','#d1dfc6','#bbd6bd','#b6d2ca','#b8cedb','#bdc4da','#cec2d5','#ddc5d0','#ead3c7','#ede0cb','#dce3e7','#b9dfe0','#cbdce8','#d4d9ee','#e5d6e4','#e7dfc3','#c7ddba'];
+shades.forEach((value,i)=>PALETTE['colour'+(i+1)]=value);
+const ASSESSMENT_STATUSES=['Scored','Not marked','Not submitted','Exempt'];
+const contains=(range,date)=>date>=range.start&&(!range.end||date<range.end);
+const intersects=(a,b)=>a.start<(b.end||'9999-12-31')&&b.start<(a.end||'9999-12-31');
+const displayName=s=>s?`${s.firstName}${s.preferredName?' ('+s.preferredName+')':''} ${s.lastName}`:'Unknown student';
+const studentEnrolled=(student,date=isoDate())=>Boolean(student?.schoolEnrolments?.some(r=>contains(r,date)));
+function classAvailable(s,c,date=isoDate()){
+  if(typeof c==='string')c=s.classes.find(x=>x.id===c);
+  if(!c)return false;
+  const year=s.calendar.years.find(y=>y.id===c.yearId);
+  return (!c.yearId||(year&&date>=year.start&&date<=year.end))&&!c.archivePeriods.some(r=>contains(r,date));
+}
+function classEnrolled(s,classId,studentId,date){
+  const c=s.classes.find(c=>c.id===classId),student=s.students.find(x=>x.id===studentId);
+  return classAvailable(s,c,date)&&studentEnrolled(student,date)&&c.enrolments.some(r=>r.studentId===studentId&&contains(r,date));
+}
+function classRoster(s,classId,date=isoDate()){
+  return s.students.filter(x=>classEnrolled(s,classId,x.id,date)).sort((a,b)=>a.lastName.localeCompare(b.lastName)||a.firstName.localeCompare(b.firstName));
+}
+function yearRoster(s,classId,yearId){
+  const c=s.classes.find(c=>c.id===classId),year=s.calendar.years.find(y=>y.id===yearId);if(!c||!year)return [];
+  const span={start:year.start,end:shiftDate(year.end,1)},ids=new Set(c.enrolments.filter(r=>intersects(r,span)).map(r=>r.studentId));
+  for(const a of B.yearAssessments(s,classId,yearId))for(const id of [...Object.keys(a.marks),...Object.keys(a.statuses)])ids.add(id);
+  return [...ids].map(id=>s.students.find(x=>x.id===id)).filter(Boolean).sort((a,b)=>a.lastName.localeCompare(b.lastName));
+}
+function recurringOn(s,date){
+  const version=[...s.timetableVersions].filter(v=>v.effectiveFrom<=date).sort((a,b)=>b.effectiveFrom.localeCompare(a.effectiveFrom))[0];
+  return clone(version?.lessons||[]);
+}
+function sessionsOn(s,date){
+  const info=B.dayInfo(s,date);if(info.closed)return [];
+  const rows=info.special?info.special.sessions:recurringOn(s,date).filter(l=>l.day===new Date(date+'T12:00:00').getDay());
+  return rows.filter(l=>!l.classId||classAvailable(s,l.classId,date)).map(l=>{const p=B.periodAt(s,l.periodId);return {...l,date,start:p.start,end:p.end,periodName:p.name,key:B.sessionKey(date,l.classId,l.periodId),special:Boolean(info.special)};}).sort((a,b)=>a.start.localeCompare(b.start));
+}
+function occurrences(s,start,end,classId=''){
+  if(!dateValid(start)||!dateValid(end)||end<start)return [];
+  const out=[];let date=start,n=0;while(date<=end&&n++<740){for(const l of sessionsOn(s,date))if(l.classId&&(!classId||l.classId===classId))out.push(l);date=shiftDate(date,1);}return out;
+}
+function nextTeachingDay(s,date){let d=date;for(let i=0;i<370;i++,d=shiftDate(d,1))if(sessionsOn(s,d).length)return d;return date;}
+function reviseTimetable(s,date,change){
+  if(!dateValid(date))throw new Error('Choose a valid effective date.');
+  const lessons=recurringOn(s,date);change(lessons);
+  const old=s.timetableVersions.find(v=>v.effectiveFrom===date);
+  const version={id:old?.id||uid('timetable'),effectiveFrom:date,lessons};
+  s.timetableVersions=s.timetableVersions.filter(v=>v.effectiveFrom!==date);s.timetableVersions.push(version);s.timetableVersions.sort((a,b)=>a.effectiveFrom.localeCompare(b.effectiveFrom));
+  s.lessons=recurringOn(s,isoDate());
+}
+function closeRanges(ranges,date){return ranges.filter(r=>r.start<date).map(r=>({...r,end:!r.end||r.end>date?date:r.end}));}
+function archiveStudent(s,id,date){
+  if(!dateValid(date))throw new Error('Choose the first day the student is no longer enrolled.');
+  const x=s.students.find(x=>x.id===id);x.schoolEnrolments=closeRanges(x.schoolEnrolments,date);x.active=studentEnrolled(x);
+  for(const c of s.classes)c.enrolments=c.enrolments.flatMap(r=>r.studentId!==id?[r]:closeRanges([r],date));
+}
+function restoreStudent(s,id,date){
+  if(!dateValid(date))throw new Error('Choose a valid re-enrolment date.');
+  const x=s.students.find(x=>x.id===id);if(studentEnrolled(x,date))throw new Error('Student is already enrolled on that date.');x.schoolEnrolments.push({start:date,end:''});x.active=studentEnrolled(x);
+}
+function archiveClass(s,id,date){const c=s.classes.find(c=>c.id===id);if(!dateValid(date))throw new Error('Choose a valid archive date.');if(c.archivePeriods.some(r=>contains(r,date)))throw new Error('Class is already archived on that date.');c.archivePeriods.push({start:date,end:''});}
+function restoreClass(s,id,date){const c=s.classes.find(c=>c.id===id);if(!dateValid(date))throw new Error('Choose a valid restoration date.');const range=c.archivePeriods.find(r=>contains(r,date));if(!range)throw new Error('Class is not archived on this date.');if(date===range.start)c.archivePeriods=c.archivePeriods.filter(r=>r!==range);else range.end=date;}
+function allocateStudentNumber(s){let next=s.settings.nextStudentNumber||1,code;do{code='SD'+String(next++).padStart(6,'0');}while(s.students.some(x=>x.code.toLowerCase()===code.toLowerCase()));s.settings.nextStudentNumber=next;return code;}
+function addStudents(s,rows,start=isoDate()){
+  if(!dateValid(start))throw new Error('Choose a valid school enrolment date.');if(!rows.length||rows.length>500)throw new Error('Add between 1 and 500 students at a time.');
+  for(const [i,row]of rows.entries())if(!row.firstName?.trim()||!row.lastName?.trim()||!/^([0-9]|1[0-2])$/.test(String(row.year))||!row.homegroup?.trim())throw new Error('Row '+(i+1)+': first name, last name, year level and homegroup are required.');
+  const added=[];for(const row of rows){const x={id:uid('s'),code:allocateStudentNumber(s),firstName:row.firstName.trim(),lastName:row.lastName.trim(),preferredName:(row.preferredName||'').trim(),year:String(row.year),homegroup:row.homegroup.trim(),guardian:row.guardian||'',email:row.email||'',phone:row.phone||'',support:row.support||'',active:true,schoolEnrolments:[{start,end:''}]};s.students.push(x);added.push(x);}return added;
+}
+function attendanceValue(s,session,studentId,drafts={}){
+  if(!classEnrolled(s,session.classId,studentId,session.date))return {status:'Not enrolled',locked:true,notEnrolled:true,comment:''};
+  return B.attendanceValue(s,session,studentId,drafts);
+}
+function setAttendance(s,session,id,status){
+  if(!classEnrolled(s,session.classId,id,session.date))throw new Error('The student is not enrolled in this class on that date.');
+  if(!sessionsOn(s,session.date).some(x=>x.key===session.key))throw new Error('This lesson is no longer timetabled.');
+  if(B.absenceFor(s,id,session.date,session.periodId))throw new Error('Change this attendance type from the student screen.');
+  if(!B.STATUSES.includes(status)&&status!=='')throw new Error('Choose a valid attendance status.');
+  let r=s.attendance.find(r=>r.id===session.key);if(!r){r={id:session.key,date:session.date,classId:session.classId,periodId:session.periodId,rows:{},savedAt:new Date().toISOString()};s.attendance.push(r);}
+  if(status)r.rows[id]={status,comment:r.rows[id]?.comment||''};else delete r.rows[id];r.savedAt=new Date().toISOString();
+}
+function attendanceEntries(s,filter={}){
+  const entries=new Map(),end=filter.end||isoDate(),start=filter.start||s.calendar.years.reduce((d,y)=>y.start<d?y.start:d,end);
+  const accept=(date,classId,id)=>date>=start&&date<=end&&(!filter.classId||classId===filter.classId)&&(!filter.studentId||id===filter.studentId)&&classEnrolled(s,classId,id,date);
+  for(const r of [...s.legacyAttendance,...s.attendance])for(const [id,row]of Object.entries(r.rows)){
+    if(!accept(r.date,r.classId,id))continue;
+    const value=r.periodId?attendanceValue(s,{...r,key:r.id},id):row;
+    if(value.status&&value.status!=='Not enrolled')entries.set(r.id+'|'+id,{date:r.date,classId:r.classId,periodId:r.periodId||'',session:r.session||'',studentId:id,...value});
   }
-  function defaultCalendar(year) {
-    const y=String(year),id='y'+y;
-    return {year:{id,name:y,start:y+'-01-26',end:y+'-12-18'},terms:[
-      {id:id+'t1',yearId:id,name:'Term 1',start:y+'-01-26',end:y+'-04-02'},
-      {id:id+'t2',yearId:id,name:'Term 2',start:y+'-04-20',end:y+'-07-03'},
-      {id:id+'t3',yearId:id,name:'Term 3',start:y+'-07-20',end:y+'-09-25'},
-      {id:id+'t4',yearId:id,name:'Term 4',start:y+'-10-12',end:y+'-12-18'}
-    ]};
+  for(const a of s.absences){if(filter.studentId&&filter.studentId!==a.studentId)continue;const from=a.start>start?a.start:start,to=a.end<end?a.end:end;for(const l of occurrences(s,from,to,filter.classId||'')){
+    if(!accept(l.date,l.classId,a.studentId))continue;const value=attendanceValue(s,l,a.studentId);if(value.locked&&!value.notEnrolled)entries.set(l.key+'|'+a.studentId,{date:l.date,classId:l.classId,periodId:l.periodId,studentId:a.studentId,...value});
+  }}return [...entries.values()].sort((a,b)=>a.date.localeCompare(b.date)||a.studentId.localeCompare(b.studentId));
+}
+function attendanceSummary(s,studentId=null,filter={}){
+  const counts={Present:0,Absent:0,Late:0,total:0,attended:0,excluded:0};
+  for(const e of attendanceEntries(s,{...filter,studentId:studentId||filter.studentId})){counts[e.status]=(counts[e.status]||0)+1;const rule=s.settings.attendanceRules[e.status]||'Absent';if(rule==='Exclude'){counts.excluded++;continue;}counts.total++;if(rule==='Attended')counts.attended++;}
+  counts.rate=counts.total?Math.round(counts.attended/counts.total*100):null;return counts;
+}
+function assessmentStatus(a,id,marks=a.marks,statuses=a.statuses){return statuses[id]||(marks[id]!==undefined&&marks[id]!==''&&marks[id]!==null?'Scored':'Not marked');}
+function assessedValue(a,id,marks=a.marks,statuses=a.statuses){
+  const status=assessmentStatus(a,id,marks,statuses);if(status==='Exempt'||status==='Not marked')return null;if(status==='Not submitted')return 0;
+  const raw=marks[id];if(raw===''||raw===null||raw===undefined)return null;const n=Number(raw);return Number.isFinite(n)&&n>=0&&n<=a.max?n:NaN;
+}
+function overall(s,id,classId,yearId,drafts={},statusDrafts={}){
+  let earned=0,possible=0,count=0,weighted=0,weightTotal=0;const mode=s.gradingModes[classId+'|'+yearId]||'points';
+  for(const a of B.yearAssessments(s,classId,yearId)){const n=assessedValue(a,id,drafts[a.id]||a.marks,statusDrafts[a.id]||a.statuses);if(n===null)continue;if(!Number.isFinite(n))return {percent:null,grade:'—',count,invalid:true};if(mode==='weighted'&&a.weight<=0)continue;earned+=n;possible+=a.max;weighted+=n/a.max*a.weight;weightTotal+=a.weight;count++;}
+  const percent=mode==='weighted'?(weightTotal?weighted/weightTotal*100:null):(possible?earned/possible*100:null);
+  return {percent,grade:percent===null?'—':B.grade(percent),earned,possible,count,mode};
+}
+function assessmentAverage(s,a,marks=a.marks,statuses=a.statuses){
+  const ids=yearRoster(s,a.classId,a.yearId).map(x=>x.id);let sum=0,count=0;for(const id of ids){const n=assessedValue(a,id,marks,statuses);if(n===null)continue;if(!Number.isFinite(n))return {percent:null,count,invalid:true};sum+=n/a.max*100;count++;}return {percent:count?sum/count:null,count};
+}
+function parseDelimited(text,delimiter,keepBlank=false){
+  text=String(text).replace(/^\uFEFF/,'');delimiter=delimiter||(text.split(/\r?\n/,1)[0].includes('\t')?'\t':',');
+  const rows=[];let row=[],cell='',quoted=false;
+  for(let i=0;i<text.length;i++){const c=text[i];if(c==='"'){if(quoted&&text[i+1]==='"'){cell+='"';i++;}else if(!quoted&&cell!=='')throw new Error('Unexpected quote in pasted data.');else quoted=!quoted;}else if(c===delimiter&&!quoted){row.push(cell);cell='';}else if((c==='\n'||c==='\r')&&!quoted){if(c==='\r'&&text[i+1]==='\n')i++;row.push(cell);if(keepBlank||row.some(x=>x.trim()))rows.push(row);row=[];cell='';}else cell+=c;}
+  if(quoted)throw new Error('A quoted CSV field was not closed.');row.push(cell);if(row.some(x=>x.trim()))rows.push(row);return rows;
+}
+function studentImport(text){
+  const rows=parseDelimited(text);if(!rows.length)return [];
+  const normalize=x=>x.toLowerCase().replace(/[^a-z]/g,''),aliases={firstname:'firstName',lastname:'lastName',preferredname:'preferredName',year:'year',yearlevel:'year',homegroup:'homegroup'};
+  const header=rows[0].map(x=>aliases[normalize(x)]),hasHeader=header.includes('firstName')&&header.includes('lastName');
+  const fields=hasHeader?header:['firstName','lastName','year','homegroup','preferredName'];
+  return (hasHeader?rows.slice(1):rows).map(r=>Object.fromEntries(fields.filter(Boolean).map(key=>[key,r[fields.indexOf(key)]?.trim()||''])));
+}
+function changesBetween(before,after){
+  const changes=[];const describe=x=>{const value=typeof x==='string'?x:JSON.stringify(x);return String(value??'').slice(0,240);};
+  function visit(a,b,path){if(changes.length>=100||JSON.stringify(a)===JSON.stringify(b))return;
+    if(Array.isArray(a)&&Array.isArray(b)&&[...a,...b].every(x=>x&&typeof x==='object'&&x.id)){const ids=new Set([...a,...b].map(x=>x.id));for(const id of ids)visit(a.find(x=>x.id===id),b.find(x=>x.id===id),path+'.'+id);}
+    else if(a&&b&&typeof a==='object'&&typeof b==='object'&&!Array.isArray(a)&&!Array.isArray(b)){for(const key of new Set([...Object.keys(a),...Object.keys(b)]))if(key!=='auditLog')visit(a[key],b[key],path?path+'.'+key:key);}
+    else changes.push({path,before:describe(a),after:describe(b)});
+  }visit(before,after,'');return changes;
+}
+function migrate(input,reference=isoDate()){
+  if(input?.version===3)return clone(validateState(input));
+  const old=B.migrate(input,reference),s=clone(old);s.version=3;
+  const start=s.calendar.years.reduce((d,y)=>y.start<d?y.start:d,reference);
+  s.settings.nextStudentNumber=1;s.settings.attendanceRules=Object.fromEntries([...B.STATUSES,...B.ABSENCE_TYPES].map(x=>[x,['Present','Late'].includes(x)?'Attended':'Absent']));
+  for(const x of s.students){x.preferredName='';x.schoolEnrolments=[{start,end:x.active?'':reference}].filter(r=>!r.end||r.start<r.end);}
+  for(const c of s.classes){c.yearId='';c.archivePeriods=[];c.enrolments=c.studentIds.map(studentId=>({studentId,start,end:''}));}
+  s.timetableVersions=[{id:'initial_timetable',effectiveFrom:'1900-01-01',lessons:clone(s.lessons)}];
+  for(const a of s.assessments){a.statuses={};a.weight=0;}s.gradingModes={};s.auditLog=[];return validateState(s);
+}
+const seed=(date=isoDate())=>migrate(B.seed(date),date);
+function validateState(s){
+  const fail=m=>{throw new Error('Invalid workspace: '+m);},obj=x=>x&&typeof x==='object'&&!Array.isArray(x),str=(x,n=10000)=>typeof x==='string'&&x.length<=n;
+  if(!s||s.version!==3)fail('unsupported version.');
+  const base=clone(s);base.version=2;for(const c of base.classes)c.colour='sage';B.validateState(base);
+  const ranges=(rows,name)=>{if(!Array.isArray(rows)||rows.length>500)fail(name+' must be a supported list.');for(const r of rows)if(!dateValid(r.start)||!(r.end===''||(dateValid(r.end)&&r.end>r.start)))fail(name+': end must be the first day no longer enrolled, after the start date.');for(let i=0;i<rows.length;i++)for(let j=i+1;j<rows.length;j++)if(intersects(rows[i],rows[j]))fail(name+' dates overlap.');};
+  if(!Number.isSafeInteger(s.settings.nextStudentNumber)||s.settings.nextStudentNumber<1||!obj(s.settings.attendanceRules))fail('invalid numbering or attendance settings.');
+  for(const status of [...B.STATUSES,...B.ABSENCE_TYPES])if(!['Attended','Absent','Exclude'].includes(s.settings.attendanceRules[status]))fail('invalid attendance counting rule.');
+  for(const x of s.students){if(!str(x.preferredName,100))fail('invalid preferred name.');ranges(x.schoolEnrolments,'school enrolment');}
+  for(const c of s.classes){if(!Object.hasOwn(PALETTE,c.colour)||!(c.yearId===''||s.calendar.years.some(y=>y.id===c.yearId)))fail('invalid class colour or school year.');ranges(c.archivePeriods,'class archive');if(!Array.isArray(c.enrolments)||c.enrolments.length>20000)fail('invalid class enrolments.');const grouped=new Map();for(const e of c.enrolments){if(!s.students.some(x=>x.id===e.studentId))fail('unknown enrolled student.');const rows=grouped.get(e.studentId)||[];rows.push(e);grouped.set(e.studentId,rows);}for(const rows of grouped.values())ranges(rows,'class enrolment');}
+  if(!Array.isArray(s.timetableVersions)||!s.timetableVersions.length||s.timetableVersions.length>1000||new Set(s.timetableVersions.map(x=>x.effectiveFrom)).size!==s.timetableVersions.length)fail('invalid timetable history.');
+  for(const v of s.timetableVersions){if(!dateValid(v.effectiveFrom)||typeof v.id!=='string'||!Array.isArray(v.lessons)||v.lessons.length>35)fail('invalid timetable version.');const check={...base,lessons:clone(v.lessons)};B.validateState(check);}
+  if(!obj(s.gradingModes))fail('invalid grading settings.');for(const [key,mode]of Object.entries(s.gradingModes)){if(!['points','weighted'].includes(mode))fail('unknown grading mode.');if(mode==='weighted'){const [classId,yearId]=key.split('|'),sum=B.yearAssessments(s,classId,yearId).reduce((n,a)=>n+a.weight,0);if(Math.abs(sum-100)>.001)fail('assessment weights must total 100% in weighted mode.');}}
+  for(const a of s.assessments){if(!obj(a.statuses)||!Number.isFinite(a.weight)||a.weight<0||a.weight>100)fail('invalid assessment weight or status.');for(const[id,status]of Object.entries(a.statuses))if(!s.students.some(x=>x.id===id)||!ASSESSMENT_STATUSES.includes(status))fail('invalid assessment status.');}
+  if(!Array.isArray(s.auditLog)||s.auditLog.length>200)fail('invalid change history.');for(const e of s.auditLog)if(!str(e.id,100)||!str(e.at,100)||!str(e.actor,200)||!str(e.summary,500)||!Array.isArray(e.changes)||e.changes.length>100||e.changes.some(c=>!str(c.path,500)||!str(c.before,240)||!str(c.after,240)))fail('invalid change-history record.');
+  return s;
+}
+function parseBackup(text){if(text.length>10*1024*1024)throw new Error('Backup is too large (maximum 10 MB).');let x;try{x=JSON.parse(text);}catch{throw new Error('This is not a valid JSON backup.');}return migrate(x);}
+class Store{
+  constructor(storage){this.storage=storage;this.warning='';this.blocked=false;this.undoStack=[];this.redoStack=[];let raw;try{raw=storage?.getItem(STORAGE_KEY);}catch{this.storage=null;this.warning='Browser storage is unavailable. Changes are temporary; export a backup before closing.';}if(raw){try{this.data=migrate(JSON.parse(raw));}catch{this.data=seed();this.blocked=true;this.warning='Saved data could not be upgraded and has been preserved. Export original saved data in Settings before restoring or resetting.';}}else this.data=seed();}
+  write(next){validateState(next);if(this.storage){try{this.storage.setItem(STORAGE_KEY,JSON.stringify(next));}catch{throw new Error('Could not save. Export a backup before clearing browser storage.');}}this.data=next;this.blocked=false;if(this.storage)this.warning='';}
+  commit(change,replace=false,summary='Workspace updated'){
+    if(this.blocked&&!replace)throw new Error('Reload, restore a backup or reset before saving.');const before=clone(this.data),next=replace?migrate(change):clone(this.data);if(!replace)change(next);const changes=changesBetween(before,next);if(!changes.length&&!replace)return this.data;
+    next.auditLog=[...next.auditLog,{id:uid('change'),at:new Date().toISOString(),actor:next.settings.teacher,summary,changes}].slice(-200);this.write(next);this.undoStack.push({before,after:clone(next),summary});if(this.undoStack.length>20)this.undoStack.shift();this.redoStack=[];return next;
   }
-  function dayInfo(s,date) {
-    const year=yearAt(s,date),term=termAt(s,date),special=s.specialDays.find(d=>d.date===date);
-    const holidays=s.calendar.holidays.filter(h=>inRange(date,h));
-    const holiday=holidays.find(h=>h.type==='Public Holiday')||holidays[0];
-    let label='';
-    if(holiday)label=holiday.type;
-    else if(!year)label='Outside school year';
-    else if([0,6].includes(new Date(date+'T12:00:00').getDay()))label='Weekend';
-    else if(!term)label='School Holidays';
-    return {year,term,special,holiday,label,closed:Boolean(label)};
-  }
-  function sessionsOn(s,date) {
-    const info=dayInfo(s,date);if(info.closed)return [];
-    const day=new Date(date+'T12:00:00').getDay();
-    const rows=info.special?info.special.sessions:s.lessons.filter(l=>l.day===day);
-    return rows.map(l=>{
-      const p=periodAt(s,l.periodId);
-      return {...l,date,start:p.start,end:p.end,periodName:p.name,key:sessionKey(date,l.classId,l.periodId),special:Boolean(info.special)};
-    }).sort((a,b)=>a.start.localeCompare(b.start));
-  }
-  function occurrences(s,start,end,classId='') {
-    if(!dateValid(start)||!dateValid(end)||end<start)return [];
-    const result=[];let date=start,days=0;
-    while(date<=end&&days++<740){for(const row of sessionsOn(s,date))if(row.classId&&(!classId||row.classId===classId))result.push(row);date=shiftDate(date,1);}
-    return result;
-  }
-  function nextTeachingDay(s,date) {
-    let d=date;for(let i=0;i<370;i++,d=shiftDate(d,1))if(sessionsOn(s,d).length)return d;
-    return date;
-  }
-  function termWeek(term,date) {
-    const start=new Date(weekStart(term.start)+'T12:00:00'),end=new Date(weekStart(date)+'T12:00:00');
-    return Math.round((end-start)/604800000)+1;
-  }
-  function absenceFor(s,studentId,date,periodId) {
-    return s.absences.find(a=>a.studentId===studentId&&inRange(date,a)&&(!a.periodIds.length||a.periodIds.includes(periodId)));
-  }
-  function attendanceValue(s,session,studentId,drafts={}) {
-    const absence=absenceFor(s,studentId,session.date,session.periodId);
-    if(absence)return {status:absence.type,locked:true,comment:absence.comment,absenceId:absence.id};
-    const rows=drafts[session.key]||s.attendance.find(a=>a.id===session.key)?.rows||{};
-    return {status:rows[studentId]?.status||'',locked:false,comment:rows[studentId]?.comment||''};
-  }
-  function cycleAttendance(status,shift=false) {return shift?'Late':status==='Present'?'Absent':'Present';}
-  function setAttendance(s,session,studentId,status) {
-    if(!STATUSES.includes(status)&&status!=='')throw new Error('Choose a valid attendance status.');
-    const current=sessionsOn(s,session.date).find(x=>x.key===session.key&&x.classId);
-    if(!current)throw new Error('This lesson is no longer in the timetable. Reopen attendance before saving.');
-    if(absenceFor(s,studentId,session.date,session.periodId))throw new Error('This attendance type can only be changed from the student screen.');
-    const student=s.students.find(x=>x.id===studentId),c=s.classes.find(x=>x.id===session.classId);
-    let roll=s.attendance.find(x=>x.id===session.key);
-    if(!student||(!roll?.rows[studentId]&&(!student.active||!c.studentIds.includes(studentId))))throw new Error('Student is not on this class roster.');
-    if(!roll){roll={id:session.key,date:session.date,classId:session.classId,periodId:session.periodId,rows:{},savedAt:new Date().toISOString()};s.attendance.push(roll);}
-    if(status)roll.rows[studentId]={status,comment:roll.rows[studentId]?.comment||''};
-    else delete roll.rows[studentId];
-    roll.savedAt=new Date().toISOString();
-  }
-  function yearAssessments(s,classId,yearId) {
-    return s.assessments.filter(a=>a.classId===classId&&a.yearId===yearId).sort((a,b)=>a.due.localeCompare(b.due)||a.title.localeCompare(b.title));
-  }
-  function overall(s,studentId,classId,yearId,drafts={}) {
-    let earned=0,possible=0,count=0;
-    for(const a of yearAssessments(s,classId,yearId)){
-      const marks=drafts[a.id]||a.marks,m=marks[studentId];
-      if(m===undefined||m===null||m==='')continue;
-      if(!Number.isFinite(Number(m))||Number(m)<0||Number(m)>a.max)return {percent:null,grade:'—',count,invalid:true};
-      earned+=Number(m);possible+=a.max;count++;
-    }
-    return {percent:possible?earned/possible*100:null,grade:possible?grade(earned,possible):'—',earned,possible,count};
-  }
-  function attendanceSummary(s,studentId=null) {
-    const counts={Present:0,Absent:0,Late:0,total:0};
-    // Legacy records remain in the denominator as originally recorded.
-    for(const roll of [...s.legacyAttendance,...s.attendance])for(const[id,row]of Object.entries(roll.rows)){
-      if(studentId&&id!==studentId)continue;
-      const value=roll.periodId?attendanceValue(s,{...roll,key:roll.id},id).status:row.status;
-      counts[value]=(counts[value]||0)+1;counts.total++;
-    }
-    counts.rate=counts.total?Math.round((counts.Present+counts.Late)/counts.total*100):null;
-    return counts;
-  }
-  function migrate(input,reference=isoDate()) {
-    if(input.version===VERSION)return clone(validateState(input));
-    L.validateState(input);
-    const s=clone(input);s.version=VERSION;s.settings.theme='forest';s.periods=clone(DEFAULT_PERIODS);
-    const years=new Set([reference.slice(0,4),String(Number(reference.slice(0,4))+1),...s.assessments.map(a=>a.due.slice(0,4)),...s.plans.map(p=>p.date.slice(0,4)),...s.attendance.map(r=>r.date.slice(0,4))]);
-    s.calendar={years:[],terms:[],holidays:[]};
-    for(const year of [...years].sort()){const c=defaultCalendar(year);s.calendar.years.push(c.year);s.calendar.terms.push(...c.terms);}
-    s.specialDays=[];s.absences=[];s.legacyAttendance=[];
-    const minutes=t=>Number(t.slice(0,2))*60+Number(t.slice(3));
-    const placed=[];
-    s.lessons=s.lessons.map(l=>{
-      const p=s.periods.filter(p=>!p.isBreak&&!placed.some(x=>x.day===l.day&&x.periodId===p.id)).sort((a,b)=>Math.abs(minutes(a.start)-minutes(l.start))-Math.abs(minutes(b.start)-minutes(l.start)))[0];
-      if(!p)throw new Error('The existing timetable has too many lessons in one day to fit the new periods.');
-      const row={id:l.id,classId:l.classId,day:l.day,periodId:p.id,room:l.room};placed.push(row);return row;
-    });
-    for(const a of s.assessments)a.yearId='y'+a.due.slice(0,4);
-    const previous=s.attendance;s.attendance=[];
-    for(const r of previous){
-      const matches=sessionsOn(s,r.date).filter(l=>l.classId===r.classId&&(r.session==='Morning'?l.start<'12:00':l.start>='12:00'));
-      if(matches.length===1&&Object.values(r.rows).every(row=>STATUSES.includes(row.status))){const l=matches[0];s.attendance.push({id:l.key,date:r.date,classId:r.classId,periodId:l.periodId,rows:r.rows,savedAt:r.savedAt});}
-      else s.legacyAttendance.push(r);
-    }
-    const assignedPlans=new Set();for(const p of s.plans){const matches=sessionsOn(s,p.date).filter(l=>l.classId===p.classId&&!assignedPlans.has(l.key));p.periodId=matches[0]?.periodId||'';if(matches[0])assignedPlans.add(matches[0].key);}
-    return validateState(s);
-  }
-  const seed = (today=isoDate()) => migrate(L.seed(today),today);
-  function validateState(s) {
-    const fail=message=>{throw new Error('Invalid workspace: '+message);};
-    const obj=x=>x&&typeof x==='object'&&!Array.isArray(x);
-    const str=(x,n=10000)=>typeof x==='string'&&x.length<=n;
-    const required=x=>str(x,200)&&x.trim().length>0;
-    const safeId=x=>required(x)&&/^[a-zA-Z0-9_-]+$/.test(x)&&!['__proto__','constructor','prototype'].includes(x);
-    const list=(rows,name,max=10000)=>{
-      if(!Array.isArray(rows)||rows.length>max||rows.some(x=>!obj(x)||!required(x.id))||new Set(rows.map(x=>x.id)).size!==rows.length)fail(name+' contains invalid or duplicate records.');
-    };
-    const range=r=>dateValid(r.start)&&dateValid(r.end)&&r.start<=r.end&&Number(r.end.slice(0,4))-Number(r.start.slice(0,4))<=1;
-    const time=t=>typeof t==='string'&&/^([01]\d|2[0-3]):[0-5]\d$/.test(t);
-    if(!obj(s)||s.version!==VERSION)fail('unsupported version.');
-    if(!obj(s.settings)||!required(s.settings.school)||!required(s.settings.teacher)||!required(s.settings.role)||!Object.hasOwn(THEMES,s.settings.theme))fail('invalid settings.');
-    for(const key of ['students','classes','lessons','assessments','attendance','legacyAttendance','notes','plans','notices','specialDays','absences'])list(s[key],key,key==='lessons'?35:10000);
-    const studentIds=new Set(s.students.map(x=>x.id)),classIds=new Set(s.classes.map(x=>x.id));
-    if(s.students.some(x=>!safeId(x.id)||!required(x.firstName)||!required(x.lastName)||!required(x.code)||!required(x.year)||!str(x.homegroup,200)||!str(x.guardian,200)||!str(x.email,200)||!str(x.phone,100)||!str(x.support)||typeof x.active!=='boolean'))fail('invalid student.');
-    if(new Set(s.students.map(x=>x.code.toLowerCase())).size!==s.students.length)fail('student numbers must be unique.');
-    if(s.classes.some(x=>!safeId(x.id)||!required(x.name)||!required(x.code)||!required(x.year)||!str(x.room,200)||!['sage','peach','lavender','blue'].includes(x.colour)||!Array.isArray(x.studentIds)||x.studentIds.some(id=>!studentIds.has(id))||new Set(x.studentIds).size!==x.studentIds.length))fail('invalid class roster.');
-    if(new Set(s.classes.map(x=>x.code.toLowerCase())).size!==s.classes.length)fail('class codes must be unique.');
-    if(!obj(s.calendar))fail('calendar missing.');
-    for(const key of ['years','terms','holidays'])list(s.calendar[key],key,200);
-    for(const y of s.calendar.years)if(!safeId(y.id)||!required(y.name)||!range(y)||(new Date(y.end+'T12:00:00')-new Date(y.start+'T12:00:00'))/86400000>366)fail('invalid school year (maximum 367 days).');
-    for(let i=0;i<s.calendar.years.length;i++)for(let j=i+1;j<s.calendar.years.length;j++)if(overlap(s.calendar.years[i],s.calendar.years[j]))fail('school years overlap.');
-    for(const t of s.calendar.terms){const y=s.calendar.years.find(y=>y.id===t.yearId);if(!safeId(t.id)||!y||!required(t.name)||!range(t)||!inRange(t.start,y)||!inRange(t.end,y))fail('term dates must be inside their school year.');}
-    for(let i=0;i<s.calendar.terms.length;i++)for(let j=i+1;j<s.calendar.terms.length;j++)if(overlap(s.calendar.terms[i],s.calendar.terms[j]))fail('school terms overlap.');
-    for(const h of s.calendar.holidays)if(!required(h.name)||!range(h)||!['School Holidays','Public Holiday'].includes(h.type))fail('invalid holiday.');
-    list(s.periods,'periods',9);
-    if(s.periods.length!==9)fail('all nine timetable periods are required.');
-    s.periods.forEach((p,i)=>{if(p.id!==DEFAULT_PERIODS[i].id||p.name!==DEFAULT_PERIODS[i].name||p.isBreak!==DEFAULT_PERIODS[i].isBreak||!time(p.start)||!time(p.end)||p.end<=p.start||(i&&p.start<s.periods[i-1].end))fail('period times must follow their order without overlaps.');});
-    const validPeriod=id=>s.periods.some(p=>p.id===id&&!p.isBreak);
-    for(const l of s.lessons)if(!safeId(l.id)||!classIds.has(l.classId)||!Number.isInteger(l.day)||l.day<1||l.day>5||!validPeriod(l.periodId)||!str(l.room,200))fail('invalid timetable lesson.');
-    if(new Set(s.lessons.map(l=>l.day+'|'+l.periodId)).size!==s.lessons.length)fail('timetable lessons overlap in a period.');
-    for(const day of s.specialDays){
-      if(!dateValid(day.date)||!required(day.label))fail('invalid special timetable date.');
-      list(day.sessions,'special sessions',7);
-      for(const l of day.sessions)if(!safeId(l.id)||!validPeriod(l.periodId)||(!classIds.has(l.classId)&&!(l.classId===''&&required(l.title)))||!str(l.title,200)||!str(l.room,200))fail('invalid special timetable session.');
-      if(new Set(day.sessions.map(l=>l.periodId)).size!==day.sessions.length)fail('special timetable periods overlap.');
-    }
-    if(new Set(s.specialDays.map(d=>d.date)).size!==s.specialDays.length)fail('only one special timetable is allowed per date.');
-    for(const a of s.assessments){
-      if(!safeId(a.id)||!classIds.has(a.classId)||!s.calendar.years.some(y=>y.id===a.yearId)||!required(a.title)||!dateValid(a.due)||!Number.isFinite(a.max)||a.max<=0||a.max>100000||!str(a.description)||!obj(a.marks))fail('invalid assessment.');
-      for(const[id,m]of Object.entries(a.marks))if(!studentIds.has(id)||typeof m!=='number'||!Number.isFinite(m)||m<0||m>a.max)fail('marks must be within the assessment maximum.');
-    }
-    for(const r of s.attendance){
-      if(!classIds.has(r.classId)||!dateValid(r.date)||!validPeriod(r.periodId)||r.id!==sessionKey(r.date,r.classId,r.periodId)||!obj(r.rows)||!str(r.savedAt,100))fail('invalid attendance roll.');
-      for(const[id,row]of Object.entries(r.rows))if(!studentIds.has(id)||!obj(row)||!STATUSES.includes(row.status)||!str(row.comment))fail('invalid attendance status.');
-    }
-    for(const r of s.legacyAttendance){
-      if(!classIds.has(r.classId)||!dateValid(r.date)||!['Morning','Afternoon'].includes(r.session)||!obj(r.rows)||!str(r.savedAt,100))fail('invalid legacy roll.');
-      for(const[id,row]of Object.entries(r.rows))if(!studentIds.has(id)||!obj(row)||!['Present','Absent','Late','Excused'].includes(row.status)||!str(row.comment))fail('invalid legacy attendance status.');
-    }
-    for(const a of s.absences)if(!studentIds.has(a.studentId)||!range(a)||!ABSENCE_TYPES.includes(a.type)||!str(a.comment)||!Array.isArray(a.periodIds)||a.periodIds.some(id=>!validPeriod(id))||new Set(a.periodIds).size!==a.periodIds.length)fail('invalid student absence.');
-    const byStudent=new Map();for(const a of s.absences){const rows=byStudent.get(a.studentId)||[];for(const b of rows)if(overlap(a,b)&&(!a.periodIds.length||!b.periodIds.length||a.periodIds.some(p=>b.periodIds.includes(p))))fail('student absence dates and periods overlap.');rows.push(a);byStudent.set(a.studentId,rows);}
-    for(const n of s.notes)if(!studentIds.has(n.studentId)||!CATEGORIES.includes(n.category)||!str(n.text)||!n.text.trim()||!dateValid(n.date)||!required(n.author)||!['Open','Closed'].includes(n.status))fail('invalid pastoral record.');
-    for(const p of s.plans)if(!classIds.has(p.classId)||!dateValid(p.date)||!(p.periodId===''||validPeriod(p.periodId))||!required(p.title)||!str(p.objective)||!str(p.activities)||!str(p.resources))fail('invalid lesson plan.');
-    const keys=s.plans.filter(p=>p.periodId).map(p=>planKey(p.date,p.classId,p.periodId));if(new Set(keys).size!==keys.length)fail('a lesson already has a saved plan.');
-    for(const n of s.notices)if(!required(n.title)||!str(n.body)||!dateValid(n.date)||!['Staff notice','Teaching & learning','School event'].includes(n.category))fail('invalid notice.');
-    return s;
-  }
-  function parseBackup(text) {
-    if(text.length>10*1024*1024)throw new Error('Backup is too large (maximum 10 MB).');
-    let parsed;try{parsed=JSON.parse(text);}catch{throw new Error('This is not a valid JSON backup.');}
-    return migrate(parsed);
-  }
-  class Store {
-    constructor(storage) {
-      this.storage=storage;this.warning='';this.blocked=false;
-      let raw;try{raw=storage?.getItem(STORAGE_KEY);}catch{this.storage=null;this.warning='Browser storage is unavailable. Changes are temporary; export a backup before closing.';}
-      if(raw){try{this.data=migrate(JSON.parse(raw));}catch{this.data=seed();this.blocked=true;this.warning='Saved data could not be upgraded. It has been preserved. Export the original saved data in Settings, or restore a backup. Demo data is shown until then.';}}
-      else this.data=seed();
-    }
-    commit(change,replace=false) {
-      if(this.blocked&&!replace)throw new Error('Reload, restore a valid backup or explicitly reset demo data before saving.');
-      const next=replace?migrate(change):clone(this.data);if(!replace)change(next);validateState(next);
-      if(this.storage){try{this.storage.setItem(STORAGE_KEY,JSON.stringify(next));}catch{throw new Error('Could not save. Browser storage may be full. Export a backup before clearing anything.');}}
-      this.data=next;this.blocked=false;if(this.storage)this.warning='';return next;
-    }
-  }
-  return {VERSION,STORAGE_KEY,STATUSES,ABSENCE_TYPES,THEMES,DEFAULT_PERIODS,CATEGORIES,clone,uid,isoDate,shiftDate,weekStart,csv,dateValid,grade,defaultCalendar,dayInfo,yearAt,termAt,periodAt,sessionsOn,occurrences,nextTeachingDay,nextSchoolDay:L.nextSchoolDay,termWeek,sessionKey,attendanceKey,planKey,absenceFor,attendanceValue,cycleAttendance,setAttendance,yearAssessments,overall,attendanceSummary,migrate,seed,validateState,parseBackup,Store};
+  undo(){if(this.blocked)throw new Error('Reload before undoing.');const entry=this.undoStack.at(-1);if(!entry)throw new Error('Nothing to undo in this session.');const next=clone(entry.before);next.settings.nextStudentNumber=Math.max(next.settings.nextStudentNumber,this.data.settings.nextStudentNumber);next.auditLog=[...this.data.auditLog,{id:uid('undo'),at:new Date().toISOString(),actor:this.data.settings.teacher,summary:'Undid: '+entry.summary,changes:changesBetween(this.data,next)}].slice(-200);this.write(next);this.undoStack.pop();this.redoStack.push(entry);return next;}
+  redo(){if(this.blocked)throw new Error('Reload before redoing.');const entry=this.redoStack.at(-1);if(!entry)throw new Error('Nothing to redo in this session.');const next=clone(entry.after);next.settings.nextStudentNumber=Math.max(next.settings.nextStudentNumber,this.data.settings.nextStudentNumber);next.auditLog=[...this.data.auditLog,{id:uid('redo'),at:new Date().toISOString(),actor:this.data.settings.teacher,summary:'Redid: '+entry.summary,changes:changesBetween(this.data,next)}].slice(-200);this.write(next);this.redoStack.pop();this.undoStack.push(entry);return next;}
+}
+return {...B,VERSION,PALETTE,ASSESSMENT_STATUSES,displayName,studentEnrolled,classAvailable,classEnrolled,classRoster,yearRoster,recurringOn,sessionsOn,occurrences,nextTeachingDay,reviseTimetable,archiveStudent,restoreStudent,archiveClass,restoreClass,allocateStudentNumber,addStudents,attendanceValue,setAttendance,attendanceEntries,attendanceSummary,assessmentStatus,assessedValue,overall,assessmentAverage,parseDelimited,studentImport,changesBetween,migrate,seed,validateState,parseBackup,Store};
 });

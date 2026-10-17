@@ -1,21 +1,23 @@
-# SchoolDesk 2.0
+# SchoolDesk 3.0
 
 An original, standalone teacher workspace inspired by everyday school workflows. SchoolDesk is independent of SEQTA and Tes.
 
 This is a working **single-user prototype** using fictional student records. It runs on GitHub Pages without installation, a backend or API keys. Saved records stay in this browser; use JSON backups to move them to another browser or device.
 
-## What changed in version 2
+## What changed in version 3
 
-- Five colour schemes in Settings: Forest, Ocean, Plum, Slate and Terracotta.
-- Configurable school years, terms, school holiday ranges and public holidays.
-- A period-based timetable: Homeroom, Period 1, Period 2, Recess, Period 3, Period 4, Lunch, Period 5, Period 6. Start/end times are editable in Settings.
-- Holiday columns show **School Holidays** or **Public Holiday** instead of classes.
-- **Special Timetable** replaces one specific date, keeping recurring classes and other dates unchanged.
-- Clicking a timetabled class opens **Attendance**, **Marksbook** or **Lesson Plan** for that class/date.
-- Term attendance grids generated from the timetable, with icon-based marking and student-screen attendance overrides.
-- Full-year marksbooks with a score/percentage pair for every assessment, followed by overall percentage and grade.
-- Daily and weekly lesson-planner views with an entry for every timetabled class session.
-- Automatic upgrades from version 1, with existing student records, results, notes and saved plans retained.
+- Forty visible class-colour swatches, with the whole timetable class block coloured.
+- Class archive/restore with effective dates and retained marks, attendance and plans.
+- Class school-year links and dated school/class enrolments. Attendance outside enrolment dates is grey, locked and excluded from calculations.
+- Preferred names displayed as **First (Preferred) Last** throughout the workspace and reports.
+- Bulk Add Students, CSV/Excel student import with preview, and automatic, immutable student numbers.
+- Roster filters by year level, homegroup, active/archived status, name or number; selected students remain selected when filters change.
+- Dated recurring timetable versions preserve earlier weeks. Class default rooms pre-fill timetable forms until manually overridden.
+- Sharp, consistently sized attendance icons and shared attendance counting rules for summaries and exports.
+- Assessment statuses, optional weightings, live class-average percentages and previewed Excel mark pasting.
+- Expanded student progress, enrolment and attendance histories, plus existing pastoral follow-ups.
+- Recoverable form/attendance/marks drafts, unsaved-change warnings, undo/redo and saved change history.
+- Automatic upgrades from versions 1 and 2. All version 2 calendar, timetable, attendance, marksbook and daily/weekly planner features remain available.
 
 ## Run locally
 
@@ -29,7 +31,7 @@ Then open <http://localhost:8000>. On Windows, `py -m http.server 8000` may be a
 
 ## GitHub Pages
 
-Keep `index.html`, `app.js`, `core.js`, `legacy.js`, `styles.css` and `assets/` at the repository root. In **Settings → Pages**, choose **Deploy from a branch**, branch **main**, folder **/(root)**. Keep the included `.nojekyll` file.
+Keep `index.html`, `app.js`, `core.js`, `core-v2.js`, `legacy.js`, `styles.css` and `assets/` at the repository root. In **Settings → Pages**, choose **Deploy from a branch**, branch **main**, folder **/(root)**. Keep the included `.nojekyll` file.
 
 For this repository, the expected project URL is <https://lukey70.github.io/SchoolDesk/> **after Pages is enabled and deployment succeeds**. Committing the source alone does not enable Pages.
 
@@ -43,7 +45,9 @@ Open **Settings & school calendar**:
 2. Edit or add **School years**, then define **School terms** inside each year.
 3. Add **School Holidays** or **Public Holiday** date ranges where needed. Both start and end dates are inclusive.
 4. Adjust the nine period times. Periods must remain in order and cannot overlap; recess and lunch remain breaks.
-5. Add recurring classes from the timetable. Only one class can occupy each teaching period in this teacher's timetable.
+5. Create classes with a school year and dated roster, then add recurring classes from the timetable. Only one class can occupy each teaching period in this teacher's timetable.
+
+Recurring timetable additions, edits and removals ask for an **Effective from** date. Earlier dates retain their previous timetable. If a later version is already scheduled, the change applies only until that version begins. Open a class in the relevant timetable week to edit its recurring entry. Timetable forms pre-fill the class default room; changing the class updates that default until you manually edit the room.
 
 **The pre-filled dates are editable demonstration dates, not a verified official school calendar.** Configure your school's dates before relying on them.
 
@@ -74,7 +78,7 @@ Choose a **class** and **term**. Students appear down the left, with timetabled 
 
 Choose **Save attendance** to persist edits. You can mark individual students without completing every square. Unsaved changes prompt before navigating away.
 
-Click a column header, or use the date/period controls, to select a lesson. **Mark selected lesson present** fills current active class members for that lesson and skips protected entries.
+Click a column header, or use the date/period controls, to select a lesson. **Mark selected lesson present** fills students enrolled in the class on that lesson date and skips protected entries.
 
 ### Student-screen attendance types
 
@@ -94,18 +98,32 @@ Supported types, with distinct icons:
 
 These records override class marks for their date/period range and are **read-only in the class attendance grid**, including during Shift-click or bulk marking. Edit or remove them from the student screen. Removing an override reveals any underlying saved teacher mark.
 
-The overview/profile attendance rate uses Present + Late divided by all saved marks, including legacy records. It is a simple demonstration statistic, not a jurisdiction-specific attendance return. Other attendance types are not automatically treated as Present for that statistic.
+**Settings → Attendance counting rules** controls whether each status counts as Attended, Absent or Exclude. Defaults: Present/Late count as attended; other statuses count as absent. The rate is attended entries ÷ included entries. Excluded statuses and dates outside school/class enrolment do not enter the denominator. The overview and student profile use saved entries through today; the attendance CSV includes all saved dates, including future entries if any were explicitly entered.
+
+Student-screen overrides are included for actual scheduled lessons even if a teacher has not saved a roll, and replace underlying marks once. Unmarked squares do not count. Saved historical and ambiguous legacy rolls are retained; legacy Excused entries count as absent by default. All reports use the same resolved entries. This is a demonstration statistic, not an official attendance return.
+
+Cells before a student's first class day, from their first day out, or outside school enrolment are grey, labelled **Not enrolled**, and cannot be marked. Historical students remain visible across their term so previous attendance remains accessible.
 
 ## Yearly marksbook
 
 Choose a **class** and **school year**. All assignments belonging to that class/year appear side by side, including tasks due earlier or later in the year. Each task has:
 
-- An editable score out of its maximum.
+- An editable score out of its maximum, with a status selector.
 - An automatically calculated percentage beside it.
+- A live **Class Average** percentage at the bottom of the assessment column.
 
 The final two columns always show **Overall Percentage** and **Overall Grade**. Click an assessment heading to edit its title, due date, maximum, year or description. A maximum cannot be reduced below an existing recorded score.
 
-**Overall calculation:** sum of earned marks divided by sum of maximum marks for tasks with a recorded score. Blank tasks are excluded. A zero is a result and is included. This is a points-based calculation; there are no separate assessment weightings.
+| Assessment status | Calculation |
+| --- | --- |
+| Scored | Recorded score, including zero, is included |
+| Not marked | Excluded until marked |
+| Not submitted | Counts as zero out of the task maximum |
+| Exempt | Excluded |
+
+The default overall calculation uses total earned marks ÷ total maximum marks for included tasks. **Weightings** can switch a class/year to weighted mode: task weights must total 100%. Overall then uses each task percentage multiplied by its weight, normalised across included tasks. Unmarked/exempt tasks and zero-weight tasks are excluded. Class averages include scored zeros and Not submitted, and exclude Not marked/Exempt. Withdrawn students' results remain available in the yearly marksbook.
+
+Use **Paste marks from Excel** to paste one score per row in the displayed student order, or two columns containing a unique student number/name and score. Blank rows in a one-column paste keep their student position. Recognised status text can replace a score. The preview validates every row before applying it to the marksbook draft; **Save marks** is still required. Use student numbers when names are duplicated.
 
 | Grade | Unrounded percentage |
 | --- | --- |
@@ -126,20 +144,37 @@ Plans are linked to a date, class and period. Two sessions of the same class on 
 
 The planner respects term dates, holidays and Special Timetable changes. Previously saved plans remain available in **Saved plans outside the current timetable** for their date range if their session is removed or closed. You can edit, duplicate or remove saved plans.
 
-## Existing features retained
+## Students and dated classes
 
-Student search/filtering, caregiver details, support notes, archiving/reactivation, connected profiles, class roster editing, pastoral records and follow-ups, local notices, JSON backup/restore, CSV exports and responsive navigation.
+**Student directory → Bulk Add Students** accepts multiple rows of first name, last name, year level and homegroup. Add rows as needed; empty rows are ignored. A common first school date applies to the batch. **Paste / Import student list** accepts CSV or tab-separated Excel text, or a CSV/TSV file, and shows a preview before adding anyone. Optional Preferred name headers are supported. Supplied student-number columns are ignored. A batch accepts up to 500 students and saves atomically.
 
-## Upgrading from version 1
+New student numbers use `SD000001`, `SD000002`, etc., skipping existing numbers. Numbers are read-only and unchanged by student edits. Existing numbers are preserved on upgrade. Duplicate names are permitted; imports flag names matching existing students for review. No automatic student merges are performed.
 
-The existing storage key, `schooldesk.v1`, is deliberately retained. Old workspaces are read and validated, then upgraded in memory. The next successful save stores version 2; original saved bytes remain untouched until then. Version 1 JSON backups also upgrade on restore.
+In a class, choose its school year, default room and colour swatch. Filter the roster without losing checked students. Each selected student has a first enrolled date and an optional **first day no longer enrolled**. Start dates are inclusive; end dates are exclusive. Unchecking a student ends their current membership on the roster effective date and preserves earlier history. A return after an ended membership creates a new interval. An explicitly entered end date never silently re-enrols the student.
 
-- Old free-time timetable sessions map to the nearest available teaching period on the same weekday. **Review period assignments and times after upgrading.**
-- A previous morning/afternoon roll maps to a dated period only when the match is unambiguous and all statuses are supported. Otherwise it remains a retained legacy roll, visible in attendance summaries and CSV exports.
-- Previous lesson plans link to matching dated class sessions where possible. Additional or unmatched plans are retained outside the timetable.
-- Grades now follow the new thresholds; stored raw scores are preserved.
-- Saved attendance for sessions removed by a later timetable/calendar edit is retained and exported, even though those sessions no longer appear as current term columns.
-- If upgrade fails, the original data is preserved, editing is blocked and a warning is shown. **Export original saved data** in Settings before investigating or resetting.
+**Archive student** asks for the first day they are no longer enrolled in school or any class. That day and later dates are excluded; earlier records remain intact. **Re-enrol student** opens a new school enrolment; add them to the required class rosters separately. **Archive class** stops its sessions from the chosen date; use the Archived class filter to restore it. Archived classes remain selectable for historical attendance and marks.
+
+Student profiles combine contact/support details, school and class enrolments, assessment status/results, attendance history and pastoral follow-ups. The recent attendance timeline shows up to 100 resolved entries; CSV export includes all resolved entries.
+
+## Drafts, history and recovery
+
+Form changes are saved separately as recoverable drafts. Attendance and marks drafts also retain their selected class/date/term/year. Leaving a screen, closing a dirty dialog or closing the tab warns about unsaved changes. Drafts do not change saved records or exported marks until explicitly saved.
+
+Use **Recover drafts**, or reopen the same form and choose **Recover draft**. Review recovered values before saving. Student import and Excel mark previews also retain their input forms. Successfully saving clears that draft. Reset/backup restore clears unfinished drafts.
+
+**Undo** and **Redo** cover the latest 20 saved changes in the current browser session. A new save clears redo history. Student-number counters do not go backwards when undoing. The latest 200 saved changes, including undo/redo, persist in **Change history**. Each entry includes the display profile, time, changed paths and shortened before/after values; large changes are limited to 100 details. This is a local change log, not a verified staff audit trail. Drafts remain browser-local and are not included in JSON backups.
+
+## Upgrading existing workspaces
+
+The existing storage key, `schooldesk.v1`, is retained. Version 1 and 2 records are validated and upgraded in memory. The next successful save stores version 3; original saved bytes remain untouched until then. Old JSON backups also upgrade on restore.
+
+- Existing student numbers, scores, attendance, notes and plans are preserved.
+- Preferred names initially remain blank. School/class enrolments initially begin at the earliest configured school-year start. Previously archived students end on the upgrade date because old versions did not record a withdrawal date. Review these dates after upgrade.
+- Existing classes retain a **Legacy — all configured years** school-year link to preserve their earlier behaviour. Assign a specific school year when appropriate. New classes select a school year.
+- The existing recurring timetable becomes the initial historical version. Earlier edits made before v3 cannot be reconstructed.
+- Version 1 free-time sessions map to available named periods; ambiguous rolls remain retained legacy records. Review period assignments and times after upgrading.
+- Previously saved plans survive removed sessions and appear under **Saved plans outside the current timetable**.
+- If upgrade fails, the original data is preserved, editing is blocked and a warning is shown. Export original saved data in Settings before investigating or resetting.
 
 ## Storage and limitations
 
@@ -156,7 +191,8 @@ This is a fictional-data prototype with **no staff authentication, permissions o
 | `index.html` | Entry point and accessible page shell |
 | `styles.css` | Themes, responsive layouts, grids and print styles |
 | `app.js` | Screens, forms, navigation and interaction handling |
-| `core.js` | Calendar/session logic, grades, validation, migration and storage |
+| `core.js` | Version 3 enrolments, timetable history, grades, validation and storage |
+| `core-v2.js` | Version 2 calendar/session logic and upgrade bridge |
 | `legacy.js` | Version 1 reader and demo generator for compatible upgrades |
 | `assets/icon.svg` | Original SchoolDesk icon |
 | `tests/` | Domain, migration and runtime workflow checks |
@@ -170,4 +206,5 @@ npm test
 npm run check
 ```
 
-The suite contains **64 automated checks**, covering all requested workflows, migration, validation and persistence. Runtime tests use a minimal DOM harness, not a browser. **Visual browser/layout QA was unavailable in the build environment.** Check your target browser and print output before relying on them.
+The suite contains **120 automated checks**, covering all requested workflows, migration, validation and persistence. Runtime tests use a minimal DOM harness, not a browser. **Visual browser/layout QA was unavailable in the build environment.** Check your target browser and print output before relying on them.
+

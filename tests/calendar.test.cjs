@@ -8,7 +8,7 @@ const holiday=(s,type,start='2026-10-19',end=start)=>s.calendar.holidays.push({i
 const special=(s,date='2026-10-19')=>s.specialDays.push({id:'special',date,label:'Event timetable',sessions:[{id:'sp1',classId:'c2',periodId:'p3',title:'',room:'Library'}]});
 
 test('v1 upgrades preserve students, scores, pastoral notes and saved attendance',()=>{
- const old=L.seed('2026-10-17'),s=D.migrate(old,'2026-10-17');assert.equal(s.version,2);assert.deepEqual(s.students,old.students);assert.deepEqual(s.notes,old.notes);assert.deepEqual(s.assessments[0].marks,old.assessments[0].marks);assert.equal(s.attendance.length+s.legacyAttendance.length,old.attendance.length);assert.equal(old.version,1);assert.equal(old.lessons[0].periodId,undefined);
+ const old=L.seed('2026-10-17'),s=D.migrate(old,'2026-10-17');assert.equal(s.version,3);assert.deepEqual(s.students.map(x=>Object.fromEntries(Object.keys(old.students[0]).map(k=>[k,x[k]]))),old.students);assert.deepEqual(s.notes,old.notes);assert.deepEqual(s.assessments[0].marks,old.assessments[0].marks);assert.equal(s.attendance.length+s.legacyAttendance.length,old.attendance.length);assert.equal(old.version,1);assert.equal(old.lessons[0].periodId,undefined);
 });
 test('v1 ambiguous or Excused rolls are retained without inventing period marks',()=>{
  const old=L.seed('2026-10-17');old.attendance[0].rows.s1.status='Excused';const s=D.migrate(old,'2026-10-17');assert.equal(s.attendance.length,0);assert.equal(s.legacyAttendance[0].rows.s1.status,'Excused');assert.deepEqual(D.parseBackup(JSON.stringify(s)),s);
@@ -59,23 +59,24 @@ test('a holiday or timetable change prevents saving a stale class attendance cel
  const s=seeded(),l=lesson(s);holiday(s,'Public Holiday');assert.throws(()=>D.setAttendance(s,l,'s1','Present'),/no longer/);assert.equal(s.attendance.some(r=>r.id===l.key),false);
 });
 test('marking absent/late never changes another period or class on the same date',()=>{
- const s=seeded(),l=lesson(s);s.lessons.push({id:'extra',classId:'c1',day:1,periodId:'p3',room:'H2'});const second=D.sessionsOn(s,l.date).find(x=>x.classId==='c1'&&x.periodId==='p3');D.setAttendance(s,l,'s1','Absent');assert.equal(D.attendanceValue(s,second,'s1').status,'');D.setAttendance(s,second,'s1','Late');assert.equal(D.attendanceValue(s,l,'s1').status,'Absent');
+ const s=seeded(),l=lesson(s);D.reviseTimetable(s,l.date,rows=>rows.push({id:'extra',classId:'c1',day:1,periodId:'p3',room:'H2'}));const second=D.sessionsOn(s,l.date).find(x=>x.classId==='c1'&&x.periodId==='p3');D.setAttendance(s,l,'s1','Absent');assert.equal(D.attendanceValue(s,second,'s1').status,'');D.setAttendance(s,second,'s1','Late');assert.equal(D.attendanceValue(s,l,'s1').status,'Absent');
 });
 test('full-year marksbook includes earlier and later tasks but excludes other years/classes',()=>{
- const s=seeded();s.assessments.push({id:'early',classId:'c1',yearId:'y2026',title:'Earlier task',due:'2026-03-02',max:100,description:'',marks:{s1:50}},{id:'later',classId:'c1',yearId:'y2027',title:'Next year',due:'2027-03-02',max:100,description:'',marks:{s1:100}});const list=D.yearAssessments(s,'c1','y2026');assert.equal(list.length,2);assert.equal(list[0].id,'early');assert.ok(!list.some(a=>a.id==='later'||a.classId!=='c1'));
+ const s=seeded();s.assessments.push({id:'early',classId:'c1',yearId:'y2026',title:'Earlier task',due:'2026-03-02',max:100,description:'',statuses:{},weight:0,marks:{s1:50}},{id:'later',classId:'c1',yearId:'y2027',title:'Next year',due:'2027-03-02',max:100,description:'',statuses:{},weight:0,marks:{s1:100}});const list=D.yearAssessments(s,'c1','y2026');assert.equal(list.length,2);assert.equal(list[0].id,'early');assert.ok(!list.some(a=>a.id==='later'||a.classId!=='c1'));
 });
 test('overall uses points from marked tasks, includes zero and excludes blank tasks',()=>{
- const s=seeded();s.assessments=[{id:'a',classId:'c1',yearId:'y2026',title:'One',due:'2026-10-19',max:20,description:'',marks:{s1:15}},{id:'b',classId:'c1',yearId:'y2026',title:'Two',due:'2026-10-20',max:80,description:'',marks:{}},{id:'c',classId:'c1',yearId:'y2026',title:'Three',due:'2026-10-21',max:100,description:'',marks:{s1:0}}];const total=D.overall(s,'s1','c1','y2026');assert.equal(total.earned,15);assert.equal(total.possible,120);assert.equal(total.percent,12.5);assert.equal(total.grade,'F');assert.equal(total.count,2);assert.equal(D.overall(s,'s2','c1','y2026').percent,null);const draft={b:{s1:'80'},c:{s1:''}};assert.equal(D.overall(s,'s1','c1','y2026',draft).percent,95);
+ const s=seeded();s.assessments=[{id:'a',classId:'c1',yearId:'y2026',title:'One',due:'2026-10-19',max:20,description:'',statuses:{},weight:0,marks:{s1:15}},{id:'b',classId:'c1',yearId:'y2026',title:'Two',due:'2026-10-20',max:80,description:'',statuses:{},weight:0,marks:{}},{id:'c',classId:'c1',yearId:'y2026',title:'Three',due:'2026-10-21',max:100,description:'',statuses:{},weight:0,marks:{s1:0}}];const total=D.overall(s,'s1','c1','y2026');assert.equal(total.earned,15);assert.equal(total.possible,120);assert.equal(total.percent,12.5);assert.equal(total.grade,'F');assert.equal(total.count,2);assert.equal(D.overall(s,'s2','c1','y2026').percent,null);const draft={b:{s1:'80'},c:{s1:''}};assert.equal(D.overall(s,'s1','c1','y2026',draft).percent,95);
 });
 test('grades follow the user thresholds without prematurely rounding a boundary',()=>{
  for(const [percent,grade]of [[100,'A'],[75,'A'],[74.999,'B'],[65,'B'],[64.999,'C'],[50,'C'],[49.999,'D'],[35,'D'],[34.999,'E'],[15,'E'],[14.999,'F'],[0,'F']])assert.equal(D.grade(percent),grade);
 });
 test('plans use date/class/period keys; saved plans survive timetable changes',()=>{
- const s=seeded(),p=s.plans[0],old=D.planKey(p.date,p.classId,p.periodId);s.lessons=s.lessons.filter(l=>l.classId!==p.classId);D.validateState(s);assert.equal(s.plans[0].title,p.title);assert.ok(!D.occurrences(s,p.date,p.date).some(l=>l.key===old));s.plans.push({...p,id:'duplicate'});assert.throws(()=>D.validateState(s),/already has a saved plan/);
+ const s=seeded(),p=s.plans[0],old=D.planKey(p.date,p.classId,p.periodId);D.reviseTimetable(s,p.date,rows=>{for(let i=rows.length-1;i>=0;i--)if(rows[i].classId===p.classId)rows.splice(i,1);});D.validateState(s);assert.equal(s.plans[0].title,p.title);assert.ok(!D.occurrences(s,p.date,p.date).some(l=>l.key===old));s.plans.push({...p,id:'duplicate'});assert.throws(()=>D.validateState(s),/already has a saved plan/);
 });
 test('period time edits flow through every dated timetable session',()=>{
  const s=seeded();s.periods[1].start='09:05';s.periods[1].end='09:45';D.validateState(s);const l=lesson(s);assert.equal(l.start,'09:05');assert.equal(l.end,'09:45');assert.equal(D.sessionsOn(s,'2026-10-26').find(l=>l.classId==='c1').start,'09:05');
 });
-test('version 1 storage upgrades in memory and persists version 2 on the next save',()=>{
- const old=L.seed('2026-10-17'),storage={raw:JSON.stringify(old),getItem(){return this.raw},setItem(_key,v){this.raw=v}},store=new D.Store(storage);assert.equal(store.data.version,2);assert.equal(JSON.parse(storage.raw).version,1);store.commit(s=>s.settings.theme='ocean');assert.equal(JSON.parse(storage.raw).version,2);assert.equal(new D.Store(storage).data.settings.theme,'ocean');
+test('version 1 storage upgrades in memory and persists version 3 on the next save',()=>{
+ const old=L.seed('2026-10-17'),storage={raw:JSON.stringify(old),getItem(){return this.raw},setItem(_key,v){this.raw=v}},store=new D.Store(storage);assert.equal(store.data.version,3);assert.equal(JSON.parse(storage.raw).version,1);store.commit(s=>s.settings.theme='ocean');assert.equal(JSON.parse(storage.raw).version,3);assert.equal(new D.Store(storage).data.settings.theme,'ocean');
 });
+

@@ -20,3 +20,50 @@
 @media print{.period-timetable{min-width:0;table-layout:fixed;font-size:9px}.period-timetable thead th:first-child{width:80px}.period-timetable td{height:auto;min-height:50px}.period-timetable .lesson-block{display:block!important;min-height:0;padding:6px}.lesson-block h3{font-size:9px!important}.closed-day>div{position:static;padding:20px 5px}.attendance-scroll,.marks-scroll{max-height:none;overflow:visible}.attendance-grid,.marksbook{font-size:8px;width:100%;min-width:0}.student-fixed{position:static;min-width:100px}.attendance-grid th,.attendance-grid td{min-width:30px}.attendance-square{display:flex!important;min-width:30px;width:100%;height:30px}.column-select{display:flex!important;min-width:30px;padding:3px;font-size:7px}.marksbook th,.marksbook td{min-width:40px!important;padding:4px!important}.marksbook .mark-input{width:40px;font-size:9px}.attendance-grid thead th,.marksbook thead th{position:static}.planner-view.weekly{min-width:0;grid-template-columns:repeat(5,1fr)}.planner-session{break-inside:avoid;padding:8px}.planner-day{padding:8px}.table-wrap{overflow:visible}.attendance-legend{break-inside:avoid}}
 .assessment-heading{height:34px;overflow:hidden;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2}
 @media print{.person{display:flex!important}.assessment-heading{display:block!important;height:auto;overflow:visible}}
+
+/* Version 3: full class colours, consistent symbols and richer editing tools. */
+.workspace-controls{display:flex;gap:7px;align-items:center;flex-wrap:wrap;margin:0 0 24px}.workspace-controls>.subtle{margin-left:auto;font-size:10px}.class-banner,.planner-session,.period-timetable .lesson-block{background:var(--class-colour,#e8eee3)!important;border-color:#203d3420!important}.course-detail{border-left-color:var(--class-colour,#9fb28f)}.period-timetable .lesson-block{border-top-width:1px}.class-banner h2,.planner-session h3,.lesson-block h3{color:#253f37}.period-timetable .lesson-block:hover{filter:brightness(.97)}.colour-picker{display:grid;grid-template-columns:repeat(10,1fr);gap:10px;margin-bottom:25px}.colour-swatch{height:34px;min-width:20px;border:1px solid #203d3430;border-radius:7px;position:relative}.colour-swatch.selected{outline:3px solid var(--forest);outline-offset:2px}.colour-swatch.selected:after{content:'✓';font-size:17px;color:#263d33;font-weight:700;position:absolute;inset:0;display:grid;place-items:center}.colour-current{padding:12px;border:1px solid #203d3420;border-radius:6px;color:#253e34!important}.roster-filters{display:grid;grid-template-columns:2fr 1fr 1.2fr 1fr;gap:9px;margin:15px 0}.roster-filters input,.roster-filters select{width:100%;font-size:11px}.roster-list{max-height:240px}.bulk-students input{width:100%;min-width:95px;padding:8px}.bulk-students td{padding:8px}.bulk-students th{font-size:10px}.not-enrolled{background:#d9ddda!important}.not-enrolled .attendance-square{background:repeating-linear-gradient(135deg,#d9ddda,#d9ddda 5px,#d2d7d4 5px,#d2d7d4 10px)!important;cursor:not-allowed}.not-enrolled-fill{width:20px;height:20px;background:#b9c0bb;border:1px solid #aeb7b1;border-radius:3px}.attendance-symbol{display:inline-block!important;width:22px!important;height:22px!important;min-width:22px;min-height:22px;flex:0 0 22px;vertical-align:middle;transform:none;filter:none;opacity:1}.attendance-legend>span{min-height:25px}.mark-status{display:block;width:115px;max-width:100%;padding:4px;font-size:9px;border-color:transparent;background:transparent;margin-top:3px}.mark-status:hover{border-color:#c8d1c1}.marksbook td{min-width:122px}.marksbook .percentage-col{min-width:76px}.marksbook tfoot th,.marksbook tfoot td{font-weight:600;border-top:2px solid #aabd9c;background:#e8efe0;padding:14px}.marksbook .mark-input{height:32px}.marksbook .mark-input:disabled{background:#e8ebe5;opacity:.7}.draft-banner{display:flex;align-items:center;flex-wrap:wrap;gap:8px;background:#f4ead3;border:1px solid #e0d1b2;padding:11px;border-radius:7px;font-size:11px;margin-bottom:17px}.change-entry{padding:15px 0;border-bottom:1px solid var(--line)}.change-entry summary{cursor:pointer;font-size:12px}.change-entry summary small{display:block;font-size:10px;color:var(--muted);margin:6px 0}.change-detail{font-size:10px;overflow-wrap:anywhere;padding:10px;background:#f5f7f0;margin-top:7px;border-radius:5px}.change-detail strong,.change-detail span{display:block;line-height:1.7}.change-detail span{color:#77856d}.student-timeline,.progress-results{max-height:330px;overflow:auto}.profile-section h3{color:var(--ink)}#selected-roster details{margin:18px 0;font-size:11px}#selected-roster input[type=date]{font-size:11px;width:150px}
+@media(max-width:760px){.workspace-controls>.subtle{margin-left:0;width:100%}.colour-picker{grid-template-columns:repeat(8,1fr);gap:9px}.roster-filters{grid-template-columns:1fr 1fr}.colour-swatch{height:32px}.mark-status{font-size:9px}.workspace-controls .button{font-size:10px}.bulk-students{min-width:550px}.change-entry summary{font-size:11px}}
+@media print{.workspace-controls,.draft-banner,.mark-status{display:none!important}.class-banner,.planner-session,.lesson-block{-webkit-print-color-adjust:exact;print-color-adjust:exact}.attendance-symbol{width:20px!important;height:20px!important}.marksbook tfoot td{font-size:9px}.not-enrolled{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
+.badge.sage{background:#dcebd3;color:#334d3e}
+.badge.peach{background:#f6dfcc;color:#334d3e}
+.badge.lavender{background:#e5dcf5;color:#334d3e}
+.badge.blue{background:#d8e9f7;color:#334d3e}
+.badge.colour1{background:#f8d9db;color:#334d3e}
+.badge.colour2{background:#efc0c8;color:#334d3e}
+.badge.colour3{background:#e4abb9;color:#334d3e}
+.badge.colour4{background:#f7d3e7;color:#334d3e}
+.badge.colour5{background:#e8c3e9;color:#334d3e}
+.badge.colour6{background:#d7c4ef;color:#334d3e}
+.badge.colour7{background:#c9c8f1;color:#334d3e}
+.badge.colour8{background:#c4d5f6;color:#334d3e}
+.badge.colour9{background:#c2e0f4;color:#334d3e}
+.badge.colour10{background:#bde7ed;color:#334d3e}
+.badge.colour11{background:#bde7df;color:#334d3e}
+.badge.colour12{background:#c9e6d4;color:#334d3e}
+.badge.colour13{background:#d7e9be;color:#334d3e}
+.badge.colour14{background:#e5ecb9;color:#334d3e}
+.badge.colour15{background:#f1ebbb;color:#334d3e}
+.badge.colour16{background:#fae6b9;color:#334d3e}
+.badge.colour17{background:#f8d4b2;color:#334d3e}
+.badge.colour18{background:#efc6b3;color:#334d3e}
+.badge.colour19{background:#e1c5b6;color:#334d3e}
+.badge.colour20{background:#d8ccbd;color:#334d3e}
+.badge.colour21{background:#d1dfc6;color:#334d3e}
+.badge.colour22{background:#bbd6bd;color:#334d3e}
+.badge.colour23{background:#b6d2ca;color:#334d3e}
+.badge.colour24{background:#b8cedb;color:#334d3e}
+.badge.colour25{background:#bdc4da;color:#334d3e}
+.badge.colour26{background:#cec2d5;color:#334d3e}
+.badge.colour27{background:#ddc5d0;color:#334d3e}
+.badge.colour28{background:#ead3c7;color:#334d3e}
+.badge.colour29{background:#ede0cb;color:#334d3e}
+.badge.colour30{background:#dce3e7;color:#334d3e}
+.badge.colour31{background:#b9dfe0;color:#334d3e}
+.badge.colour32{background:#cbdce8;color:#334d3e}
+.badge.colour33{background:#d4d9ee;color:#334d3e}
+.badge.colour34{background:#e5d6e4;color:#334d3e}
+.badge.colour35{background:#e7dfc3;color:#334d3e}
+.badge.colour36{background:#c7ddba;color:#334d3e}
+
+.period-timetable .lesson-block small,.period-timetable .lesson-block p,.planner-session p{color:#455d50}
