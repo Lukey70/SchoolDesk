@@ -1,23 +1,40 @@
-/* SchoolDesk v3 domain: dated enrolments, stable history and shared calculations. */
+/* SchoolDesk v4 domain: dated enrolments, stable history and shared calculations. */
 (function(root,factory){
   const api=factory(typeof module==='object'&&module.exports?require('./core-v2.js'):root.SchoolDeskV2);
   if(typeof module==='object'&&module.exports)module.exports=api;else root.SchoolDesk=api;
 })(typeof globalThis!=='undefined'?globalThis:this,function(B){
 'use strict';
-const {clone,uid,isoDate,dateValid,shiftDate}=B,VERSION=3,STORAGE_KEY=B.STORAGE_KEY;
+const {clone,uid,isoDate,dateValid,shiftDate}=B,VERSION=4,STORAGE_KEY=B.STORAGE_KEY;
 const PALETTE={sage:'#dcebd3',peach:'#f6dfcc',lavender:'#e5dcf5',blue:'#d8e9f7'};
 const shades=['#f8d9db','#efc0c8','#e4abb9','#f7d3e7','#e8c3e9','#d7c4ef','#c9c8f1','#c4d5f6','#c2e0f4','#bde7ed','#bde7df','#c9e6d4','#d7e9be','#e5ecb9','#f1ebbb','#fae6b9','#f8d4b2','#efc6b3','#e1c5b6','#d8ccbd','#d1dfc6','#bbd6bd','#b6d2ca','#b8cedb','#bdc4da','#cec2d5','#ddc5d0','#ead3c7','#ede0cb','#dce3e7','#b9dfe0','#cbdce8','#d4d9ee','#e5d6e4','#e7dfc3','#c7ddba'];
 shades.forEach((value,i)=>PALETTE['colour'+(i+1)]=value);
+const YEAR_LEVELS=Object.freeze(['7','8','9','10','11','12']);
+const HOMEGROUPS=Object.freeze([
+  Object.freeze({name:'Jarrah',colour:'Green',hex:'#287347',background:'#e2f0e7'}),
+  Object.freeze({name:'Tuart',colour:'Blue',hex:'#245da8',background:'#e4edf9'}),
+  Object.freeze({name:'Wattle',colour:'Yellow',hex:'#e5b700',background:'#fff4bf'}),
+  Object.freeze({name:'Redgum',colour:'Red',hex:'#b33139',background:'#f9e3e5'})
+]);
+const ABSENCE_TYPES=Object.freeze([...B.ABSENCE_TYPES,'Excused']);
+const normalizeYear=value=>String(value??'').trim().replace(/^year\s*/i,'');
+const normalizeHomegroup=value=>HOMEGROUPS.find(g=>g.name.toLowerCase()===String(value??'').trim().toLowerCase())?.name||String(value??'').trim();
+function validateYearLevel(value){const year=normalizeYear(value);if(!YEAR_LEVELS.includes(year))throw new Error('Choose a year level from Year 7 to Year 12.');return year;}
+function studentChoices(row){const year=validateYearLevel(row.year),homegroup=normalizeHomegroup(row.homegroup);if(!HOMEGROUPS.some(g=>g.name===homegroup))throw new Error('Choose Jarrah, Tuart, Wattle or Redgum as the homegroup.');return {year,homegroup};}
 const ASSESSMENT_STATUSES=['Scored','Not marked','Not submitted','Exempt'];
 const contains=(range,date)=>date>=range.start&&(!range.end||date<range.end);
 const intersects=(a,b)=>a.start<(b.end||'9999-12-31')&&b.start<(a.end||'9999-12-31');
 const displayName=s=>s?`${s.firstName}${s.preferredName?' ('+s.preferredName+')':''} ${s.lastName}`:'Unknown student';
 const studentEnrolled=(student,date=isoDate())=>Boolean(student?.schoolEnrolments?.some(r=>contains(r,date)));
+function classArchiveInfo(s,c,date=isoDate()){
+  if(typeof c==='string')c=s.classes.find(x=>x.id===c);if(!c)return {archived:false,automatic:false};
+  const year=s.calendar.years.find(y=>y.id===c.yearId),automatic=Boolean(year&&date>year.end),manual=c.archivePeriods.some(r=>contains(r,date));
+  return {archived:automatic||manual,automatic,year,firstDay:automatic?shiftDate(year.end,1):c.archivePeriods.find(r=>contains(r,date))?.start||''};
+}
+const classArchived=(s,c,date=isoDate())=>classArchiveInfo(s,c,date).archived;
 function classAvailable(s,c,date=isoDate()){
-  if(typeof c==='string')c=s.classes.find(x=>x.id===c);
-  if(!c)return false;
-  const year=s.calendar.years.find(y=>y.id===c.yearId);
-  return (!c.yearId||(year&&date>=year.start&&date<=year.end))&&!c.archivePeriods.some(r=>contains(r,date));
+  if(typeof c==='string')c=s.classes.find(x=>x.id===c);if(!c)return false;
+  const info=classArchiveInfo(s,c,date),year=info.year;
+  return (!c.yearId||(year&&date>=year.start&&date<=year.end))&&!info.archived;
 }
 function classEnrolled(s,classId,studentId,date){
   const c=s.classes.find(c=>c.id===classId),student=s.students.find(x=>x.id===studentId);
@@ -65,12 +82,12 @@ function restoreStudent(s,id,date){
   const x=s.students.find(x=>x.id===id);if(studentEnrolled(x,date))throw new Error('Student is already enrolled on that date.');x.schoolEnrolments.push({start:date,end:''});x.active=studentEnrolled(x);
 }
 function archiveClass(s,id,date){const c=s.classes.find(c=>c.id===id);if(!dateValid(date))throw new Error('Choose a valid archive date.');if(c.archivePeriods.some(r=>contains(r,date)))throw new Error('Class is already archived on that date.');c.archivePeriods.push({start:date,end:''});}
-function restoreClass(s,id,date){const c=s.classes.find(c=>c.id===id);if(!dateValid(date))throw new Error('Choose a valid restoration date.');const range=c.archivePeriods.find(r=>contains(r,date));if(!range)throw new Error('Class is not archived on this date.');if(date===range.start)c.archivePeriods=c.archivePeriods.filter(r=>r!==range);else range.end=date;}
+function restoreClass(s,id,date){const c=s.classes.find(c=>c.id===id);if(!dateValid(date))throw new Error('Choose a valid restoration date.');if(classArchiveInfo(s,c,date).automatic)throw new Error('This class school year has ended. Edit its school year before restoring it.');const range=c.archivePeriods.find(r=>contains(r,date));if(!range)throw new Error('Class is not archived on this date.');if(date===range.start)c.archivePeriods=c.archivePeriods.filter(r=>r!==range);else range.end=date;}
 function allocateStudentNumber(s){let next=s.settings.nextStudentNumber||1,code;do{code='SD'+String(next++).padStart(6,'0');}while(s.students.some(x=>x.code.toLowerCase()===code.toLowerCase()));s.settings.nextStudentNumber=next;return code;}
 function addStudents(s,rows,start=isoDate()){
   if(!dateValid(start))throw new Error('Choose a valid school enrolment date.');if(!rows.length||rows.length>500)throw new Error('Add between 1 and 500 students at a time.');
-  for(const [i,row]of rows.entries())if(!row.firstName?.trim()||!row.lastName?.trim()||!/^([0-9]|1[0-2])$/.test(String(row.year))||!row.homegroup?.trim())throw new Error('Row '+(i+1)+': first name, last name, year level and homegroup are required.');
-  const added=[];for(const row of rows){const x={id:uid('s'),code:allocateStudentNumber(s),firstName:row.firstName.trim(),lastName:row.lastName.trim(),preferredName:(row.preferredName||'').trim(),year:String(row.year),homegroup:row.homegroup.trim(),guardian:row.guardian||'',email:row.email||'',phone:row.phone||'',support:row.support||'',active:true,schoolEnrolments:[{start,end:''}]};s.students.push(x);added.push(x);}return added;
+  for(const [i,row]of rows.entries()){if(!row.firstName?.trim()||!row.lastName?.trim())throw new Error('Row '+(i+1)+': first name and last name are required.');try{studentChoices(row);}catch(error){throw new Error('Row '+(i+1)+': '+error.message);}}
+  const added=[];for(const row of rows){const x={id:uid('s'),code:allocateStudentNumber(s),firstName:row.firstName.trim(),lastName:row.lastName.trim(),preferredName:(row.preferredName||'').trim(),...studentChoices(row),guardian:row.guardian||'',email:row.email||'',phone:row.phone||'',support:row.support||'',active:true,schoolEnrolments:[{start,end:''}]};s.students.push(x);added.push(x);}return added;
 }
 function attendanceValue(s,session,studentId,drafts={}){
   if(!classEnrolled(s,session.classId,studentId,session.date))return {status:'Not enrolled',locked:true,notEnrolled:true,comment:''};
@@ -137,23 +154,27 @@ function changesBetween(before,after){
   }visit(before,after,'');return changes;
 }
 function migrate(input,reference=isoDate()){
-  if(input?.version===3)return clone(validateState(input));
-  const old=B.migrate(input,reference),s=clone(old);s.version=3;
+  if(input?.version===4)return clone(validateState(input));
+  if(input?.version===3){const s=clone(input);s.version=4;if(s.settings?.attendanceRules&&!Object.hasOwn(s.settings.attendanceRules,'Excused'))s.settings.attendanceRules.Excused='Absent';return validateState(s);}
+  const old=B.migrate(input,reference),s=clone(old);s.version=4;
   const start=s.calendar.years.reduce((d,y)=>y.start<d?y.start:d,reference);
-  s.settings.nextStudentNumber=1;s.settings.attendanceRules=Object.fromEntries([...B.STATUSES,...B.ABSENCE_TYPES].map(x=>[x,['Present','Late'].includes(x)?'Attended':'Absent']));
+  s.settings.nextStudentNumber=1;s.settings.attendanceRules=Object.fromEntries([...B.STATUSES,...ABSENCE_TYPES].map(x=>[x,['Present','Late'].includes(x)?'Attended':'Absent']));
   for(const x of s.students){x.preferredName='';x.schoolEnrolments=[{start,end:x.active?'':reference}].filter(r=>!r.end||r.start<r.end);}
   for(const c of s.classes){c.yearId='';c.archivePeriods=[];c.enrolments=c.studentIds.map(studentId=>({studentId,start,end:''}));}
   s.timetableVersions=[{id:'initial_timetable',effectiveFrom:'1900-01-01',lessons:clone(s.lessons)}];
   for(const a of s.assessments){a.statuses={};a.weight=0;}s.gradingModes={};s.auditLog=[];return validateState(s);
 }
-const seed=(date=isoDate())=>migrate(B.seed(date),date);
+function seed(date=isoDate()){const s=migrate(B.seed(date),date);for(const [i,x]of s.students.entries())x.homegroup=HOMEGROUPS[i%HOMEGROUPS.length].name;for(const c of s.classes)c.yearId=B.yearAt(s,date)?.id||s.calendar.years[0]?.id||'';return validateState(s);}
 function validateState(s){
   const fail=m=>{throw new Error('Invalid workspace: '+m);},obj=x=>x&&typeof x==='object'&&!Array.isArray(x),str=(x,n=10000)=>typeof x==='string'&&x.length<=n;
-  if(!s||s.version!==3)fail('unsupported version.');
-  const base=clone(s);base.version=2;for(const c of base.classes)c.colour='sage';B.validateState(base);
+  if(!s||s.version!==4)fail('unsupported version.');
+  const base=clone(s);base.version=2;for(const c of base.classes)c.colour='sage';
+  // The v2 validator supplies structural/range checks; map only the newly supported
+  // type on its temporary copy. The saved Excused records remain unchanged.
+  if(Array.isArray(base.absences))for(const a of base.absences)if(a.type==='Excused')a.type='Medical';B.validateState(base);
   const ranges=(rows,name)=>{if(!Array.isArray(rows)||rows.length>500)fail(name+' must be a supported list.');for(const r of rows)if(!dateValid(r.start)||!(r.end===''||(dateValid(r.end)&&r.end>r.start)))fail(name+': end must be the first day no longer enrolled, after the start date.');for(let i=0;i<rows.length;i++)for(let j=i+1;j<rows.length;j++)if(intersects(rows[i],rows[j]))fail(name+' dates overlap.');};
   if(!Number.isSafeInteger(s.settings.nextStudentNumber)||s.settings.nextStudentNumber<1||!obj(s.settings.attendanceRules))fail('invalid numbering or attendance settings.');
-  for(const status of [...B.STATUSES,...B.ABSENCE_TYPES])if(!['Attended','Absent','Exclude'].includes(s.settings.attendanceRules[status]))fail('invalid attendance counting rule.');
+  for(const status of [...B.STATUSES,...ABSENCE_TYPES])if(!['Attended','Absent','Exclude'].includes(s.settings.attendanceRules[status]))fail('invalid attendance counting rule.');
   for(const x of s.students){if(!str(x.preferredName,100))fail('invalid preferred name.');ranges(x.schoolEnrolments,'school enrolment');}
   for(const c of s.classes){if(!Object.hasOwn(PALETTE,c.colour)||!(c.yearId===''||s.calendar.years.some(y=>y.id===c.yearId)))fail('invalid class colour or school year.');ranges(c.archivePeriods,'class archive');if(!Array.isArray(c.enrolments)||c.enrolments.length>20000)fail('invalid class enrolments.');const grouped=new Map();for(const e of c.enrolments){if(!s.students.some(x=>x.id===e.studentId))fail('unknown enrolled student.');const rows=grouped.get(e.studentId)||[];rows.push(e);grouped.set(e.studentId,rows);}for(const rows of grouped.values())ranges(rows,'class enrolment');}
   if(!Array.isArray(s.timetableVersions)||!s.timetableVersions.length||s.timetableVersions.length>1000||new Set(s.timetableVersions.map(x=>x.effectiveFrom)).size!==s.timetableVersions.length)fail('invalid timetable history.');
@@ -174,5 +195,5 @@ class Store{
   undo(){if(this.blocked)throw new Error('Reload before undoing.');const entry=this.undoStack.at(-1);if(!entry)throw new Error('Nothing to undo in this session.');const next=clone(entry.before);next.settings.nextStudentNumber=Math.max(next.settings.nextStudentNumber,this.data.settings.nextStudentNumber);next.auditLog=[...this.data.auditLog,{id:uid('undo'),at:new Date().toISOString(),actor:this.data.settings.teacher,summary:'Undid: '+entry.summary,changes:changesBetween(this.data,next)}].slice(-200);this.write(next);this.undoStack.pop();this.redoStack.push(entry);return next;}
   redo(){if(this.blocked)throw new Error('Reload before redoing.');const entry=this.redoStack.at(-1);if(!entry)throw new Error('Nothing to redo in this session.');const next=clone(entry.after);next.settings.nextStudentNumber=Math.max(next.settings.nextStudentNumber,this.data.settings.nextStudentNumber);next.auditLog=[...this.data.auditLog,{id:uid('redo'),at:new Date().toISOString(),actor:this.data.settings.teacher,summary:'Redid: '+entry.summary,changes:changesBetween(this.data,next)}].slice(-200);this.write(next);this.redoStack.pop();this.undoStack.push(entry);return next;}
 }
-return {...B,VERSION,PALETTE,ASSESSMENT_STATUSES,displayName,studentEnrolled,classAvailable,classEnrolled,classRoster,yearRoster,recurringOn,sessionsOn,occurrences,nextTeachingDay,reviseTimetable,archiveStudent,restoreStudent,archiveClass,restoreClass,allocateStudentNumber,addStudents,attendanceValue,setAttendance,attendanceEntries,attendanceSummary,assessmentStatus,assessedValue,overall,assessmentAverage,parseDelimited,studentImport,changesBetween,migrate,seed,validateState,parseBackup,Store};
+return {...B,VERSION,YEAR_LEVELS,HOMEGROUPS,ABSENCE_TYPES,normalizeYear,normalizeHomegroup,validateYearLevel,studentChoices,PALETTE,ASSESSMENT_STATUSES,classArchiveInfo,classArchived,displayName,studentEnrolled,classAvailable,classEnrolled,classRoster,yearRoster,recurringOn,sessionsOn,occurrences,nextTeachingDay,reviseTimetable,archiveStudent,restoreStudent,archiveClass,restoreClass,allocateStudentNumber,addStudents,attendanceValue,setAttendance,attendanceEntries,attendanceSummary,assessmentStatus,assessedValue,overall,assessmentAverage,parseDelimited,studentImport,changesBetween,migrate,seed,validateState,parseBackup,Store};
 });

@@ -1,8 +1,17 @@
-# SchoolDesk 3.0
+# SchoolDesk 4.0
 
 An original, standalone teacher workspace inspired by everyday school workflows. SchoolDesk is independent of SEQTA and Tes.
 
 This is a working **single-user prototype** using fictional student records. It runs on GitHub Pages without installation, a backend or API keys. Saved records stay in this browser; use JSON backups to move them to another browser or device.
+
+## What changed in version 4
+
+- Homegroup dropdowns now use **Jarrah (green), Tuart (blue), Wattle (yellow) and Redgum (red)**, with labelled colour badges.
+- New student/class entry and filters offer **Year 7, Year 8, Year 9, Year 10, Year 11 and Year 12**. Bulk entry uses the same dropdowns; CSV imports validate the same values.
+- Classes automatically appear in **Archived** from the first day after their selected school year's end date. Earlier attendance, marks and plans remain accessible.
+- Add **Excused** as a protected student-screen attendance type, shown as a grey circle with a white E. Hover/focus identifies it as Excused.
+- Attendance no longer labels withdrawn students as Archived beside their names. Historical rows and locked grey Not enrolled cells remain.
+- Version 3 workspaces upgrade without reassigning earlier homegroup/year values or losing records and drafts.
 
 ## What changed in version 3
 
@@ -95,10 +104,11 @@ Supported types, with distinct icons:
 - Sick bay
 - Suspended (External)
 - Suspended (Internal)
+- Excused (grey circle with a white E)
 
 These records override class marks for their date/period range and are **read-only in the class attendance grid**, including during Shift-click or bulk marking. Edit or remove them from the student screen. Removing an override reveals any underlying saved teacher mark.
 
-**Settings → Attendance counting rules** controls whether each status counts as Attended, Absent or Exclude. Defaults: Present/Late count as attended; other statuses count as absent. The rate is attended entries ÷ included entries. Excluded statuses and dates outside school/class enrolment do not enter the denominator. The overview and student profile use saved entries through today; the attendance CSV includes all saved dates, including future entries if any were explicitly entered.
+**Settings → Attendance counting rules** controls whether each status counts as Attended, Absent or Exclude. Defaults: Present/Late count as attended; other statuses, including Excused, count as absent. You can change Excused to Exclude or Attended in these settings if that matches your school’s counting rules. The rate is attended entries ÷ included entries. Excluded statuses and dates outside school/class enrolment do not enter the denominator. The overview and student profile use saved entries through today; the attendance CSV includes all saved dates, including future entries if any were explicitly entered.
 
 Student-screen overrides are included for actual scheduled lessons even if a teacher has not saved a roll, and replace underlying marks once. Unmarked squares do not count. Saved historical and ambiguous legacy rolls are retained; legacy Excused entries count as absent by default. All reports use the same resolved entries. This is a demonstration statistic, not an official attendance return.
 
@@ -146,13 +156,24 @@ The planner respects term dates, holidays and Special Timetable changes. Previou
 
 ## Students and dated classes
 
-**Student directory → Bulk Add Students** accepts multiple rows of first name, last name, year level and homegroup. Add rows as needed; empty rows are ignored. A common first school date applies to the batch. **Paste / Import student list** accepts CSV or tab-separated Excel text, or a CSV/TSV file, and shows a preview before adding anyone. Optional Preferred name headers are supported. Supplied student-number columns are ignored. A batch accepts up to 500 students and saves atomically.
+Student and class year-level dropdowns contain Year 7 through Year 12. Homegroup dropdowns contain the four options below; their names remain visible alongside colour so colour alone is never required to identify a homegroup.
+
+| Homegroup | Colour |
+| --- | --- |
+| Jarrah | Green |
+| Tuart | Blue |
+| Wattle | Yellow |
+| Redgum | Red |
+
+**Student directory → Bulk Add Students** accepts multiple rows of first name, last name, year level and homegroup. Add rows as needed; empty rows are ignored. A common first school date applies to the batch. **Paste / Import student list** accepts CSV or tab-separated Excel text, or a CSV/TSV file, and shows a preview before adding anyone. Optional Preferred name headers are supported. Supplied student-number columns are ignored. A batch accepts up to 500 students and saves atomically. Use years `7`–`12` (or labels such as `Year 7`) and one of the approved homegroup names. Matching is case-insensitive on import; saved values use the standard spelling. A row with an unknown year or homegroup rejects the entire batch before saving.
 
 New student numbers use `SD000001`, `SD000002`, etc., skipping existing numbers. Numbers are read-only and unchanged by student edits. Existing numbers are preserved on upgrade. Duplicate names are permitted; imports flag names matching existing students for review. No automatic student merges are performed.
 
 In a class, choose its school year, default room and colour swatch. Filter the roster without losing checked students. Each selected student has a first enrolled date and an optional **first day no longer enrolled**. Start dates are inclusive; end dates are exclusive. Unchecking a student ends their current membership on the roster effective date and preserves earlier history. A return after an ended membership creates a new interval. An explicitly entered end date never silently re-enrols the student.
 
-**Archive student** asks for the first day they are no longer enrolled in school or any class. That day and later dates are excluded; earlier records remain intact. **Re-enrol student** opens a new school enrolment; add them to the required class rosters separately. **Archive class** stops its sessions from the chosen date; use the Archived class filter to restore it. Archived classes remain selectable for historical attendance and marks.
+**Archive student** asks for the first day they are no longer enrolled in school or any class. That day and later dates are excluded; earlier records remain intact. **Re-enrol student** opens a new school enrolment; add them to the required class rosters separately. **Archive class** stops its sessions from the chosen date; use the Archived class filter to restore it. Classes also archive automatically the day after their selected school year ends, even without a manual archive action. The year end date in Settings controls this boundary. Status is calculated from the date, so it also takes effect when the app is reopened after a break; an open tab checks the date every minute and on returning to the tab. Open/unsaved forms are protected while its list refresh waits.
+
+Archived classes remain selectable for historical attendance and marks. Use the term/year selectors to open the period you need. An automatically archived class shows **Change school year**, rather than a restore action that would bypass its expired year. Manual restoration remains available within a valid school year. Changing a school-year link can change which dates are available for that class; retain separate classes for separate years when their histories should stay distinct.
 
 Student profiles combine contact/support details, school and class enrolments, assessment status/results, attendance history and pastoral follow-ups. The recent attendance timeline shows up to 100 resolved entries; CSV export includes all resolved entries.
 
@@ -166,11 +187,14 @@ Use **Recover drafts**, or reopen the same form and choose **Recover draft**. Re
 
 ## Upgrading existing workspaces
 
-The existing storage key, `schooldesk.v1`, is retained. Version 1 and 2 records are validated and upgraded in memory. The next successful save stores version 3; original saved bytes remain untouched until then. Old JSON backups also upgrade on restore.
+The existing storage key, `schooldesk.v1`, is retained. Version 1, 2 and 3 records are validated and upgraded in memory. The next successful save stores version 4; original saved bytes remain untouched until then. Old JSON backups also upgrade on restore.
 
-- Existing student numbers, scores, attendance, notes and plans are preserved.
-- Preferred names initially remain blank. School/class enrolments initially begin at the earliest configured school-year start. Previously archived students end on the upgrade date because old versions did not record a withdrawal date. Review these dates after upgrade.
-- Existing classes retain a **Legacy — all configured years** school-year link to preserve their earlier behaviour. Assign a specific school year when appropriate. New classes select a school year.
+- Existing student numbers, scores, attendance, notes, plans, timetable history, enrolments and saved change history are preserved. Recoverable drafts continue to use their existing browser key.
+- Old homegroups and year levels outside the new options remain unchanged for review. Directory/roster filters include **Previous homegroup values** and **Previous year values** when needed. Editing one of those student records asks you to explicitly choose the approved values; the upgrade never guesses a student's homegroup.
+- Version 3 class school-year links are retained, and linked classes whose year has ended now appear under Archived. No record deletion or permanent archive-period rewrite is needed.
+- Excused is added to attendance settings. Version 1/2/3 JSON backups remain supported, and version 4 backups include the new attendance type.
+- For version 1/2 upgrades, preferred names initially remain blank. School/class enrolments initially begin at the earliest configured school-year start. Previously archived students end on the upgrade date because old versions did not record a withdrawal date. Review these dates after upgrade.
+- Version 1/2 classes retain an unlinked school year covering all configured years to preserve their earlier behaviour. Assign a specific school year when editing them so automatic end-of-year archiving can apply. New classes require a school year.
 - The existing recurring timetable becomes the initial historical version. Earlier edits made before v3 cannot be reconstructed.
 - Version 1 free-time sessions map to available named periods; ambiguous rolls remain retained legacy records. Review period assignments and times after upgrading.
 - Previously saved plans survive removed sessions and appear under **Saved plans outside the current timetable**.
@@ -191,7 +215,7 @@ This is a fictional-data prototype with **no staff authentication, permissions o
 | `index.html` | Entry point and accessible page shell |
 | `styles.css` | Themes, responsive layouts, grids and print styles |
 | `app.js` | Screens, forms, navigation and interaction handling |
-| `core.js` | Version 3 enrolments, timetable history, grades, validation and storage |
+| `core.js` | Version 4 homegroups, enrolments, class lifecycle, attendance, grades, validation and storage |
 | `core-v2.js` | Version 2 calendar/session logic and upgrade bridge |
 | `legacy.js` | Version 1 reader and demo generator for compatible upgrades |
 | `assets/icon.svg` | Original SchoolDesk icon |
@@ -206,5 +230,5 @@ npm test
 npm run check
 ```
 
-The suite contains **120 automated checks**, covering all requested workflows, migration, validation and persistence. Runtime tests use a minimal DOM harness, not a browser. **Visual browser/layout QA was unavailable in the build environment.** Check your target browser and print output before relying on them.
+The suite contains **151 automated checks**, covering all requested workflows, migration, validation and persistence. Runtime tests use a minimal DOM harness, not a browser. **Visual browser/layout QA was unavailable in the build environment.** Check your target browser and print output before relying on them.
 

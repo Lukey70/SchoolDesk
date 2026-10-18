@@ -67,3 +67,7 @@
 .badge.colour36{background:#c7ddba;color:#334d3e}
 
 .period-timetable .lesson-block small,.period-timetable .lesson-block p,.planner-session p{color:#455d50}
+
+/* Version 4: the four school homegroups have fixed, labelled colours. */
+.homegroup-badge{display:inline-flex;align-items:center;gap:7px;padding:4px 8px;border:1px solid #203d3420;border-left:3px solid var(--homegroup-colour);border-radius:5px;background:var(--homegroup-background);color:#243c33;font-size:11px;line-height:1.5;white-space:nowrap}.homegroup-badge i{display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--homegroup-colour);flex-shrink:0}.homegroup-legend{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}.roster-list .homegroup-badge{font-size:10px}.bulk-students select{width:100%;min-width:140px;padding:8px}.bulk-students td{vertical-align:top}.class-actions{margin-top:12px}
+@media print{.homegroup-badge{-webkit-print-color-adjust:exact;print-color-adjust:exact}}

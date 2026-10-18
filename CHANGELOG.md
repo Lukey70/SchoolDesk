@@ -1,5 +1,17 @@
 # Changelog
 
+## 4.0.0 — 18 October 2026
+
+- Add fixed homegroup dropdowns: Jarrah (green), Tuart (blue), Wattle (yellow), Redgum (red), with labelled colour badges.
+- Restrict new student/class entry, bulk entry and year filters to Year 7–12; validate approved values during CSV imports.
+- Preserve earlier homegroup/year values during upgrade and expose review filters instead of silently reassigning students.
+- Automatically archive classes the day after their selected school year ends, preserving historical attendance, marks and plans.
+- Refresh date-dependent class status across midnight without discarding unsaved forms.
+- Add protected student-screen Excused attendance, with a crisp grey-circle white-E SVG, hover/focus name and configurable counting rule.
+- Remove the Archived label beside student names in attendance while retaining historical rows and locked grey cells outside enrolment.
+- Add a validated v3-to-v4 upgrade; retain compatible v1/v2 import and existing draft keys.
+- Verify 151 automated domain/runtime checks; visual browser QA remains unavailable in this build environment.
+
 ## 3.0.0 — 17 October 2026
 
 - Add 40 visible class-colour swatches and colour entire timetable blocks.

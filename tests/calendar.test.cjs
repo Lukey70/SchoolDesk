@@ -8,7 +8,7 @@ const holiday=(s,type,start='2026-10-19',end=start)=>s.calendar.holidays.push({i
 const special=(s,date='2026-10-19')=>s.specialDays.push({id:'special',date,label:'Event timetable',sessions:[{id:'sp1',classId:'c2',periodId:'p3',title:'',room:'Library'}]});
 
 test('v1 upgrades preserve students, scores, pastoral notes and saved attendance',()=>{
- const old=L.seed('2026-10-17'),s=D.migrate(old,'2026-10-17');assert.equal(s.version,3);assert.deepEqual(s.students.map(x=>Object.fromEntries(Object.keys(old.students[0]).map(k=>[k,x[k]]))),old.students);assert.deepEqual(s.notes,old.notes);assert.deepEqual(s.assessments[0].marks,old.assessments[0].marks);assert.equal(s.attendance.length+s.legacyAttendance.length,old.attendance.length);assert.equal(old.version,1);assert.equal(old.lessons[0].periodId,undefined);
+ const old=L.seed('2026-10-17'),s=D.migrate(old,'2026-10-17');assert.equal(s.version,4);assert.deepEqual(s.students.map(x=>Object.fromEntries(Object.keys(old.students[0]).map(k=>[k,x[k]]))),old.students);assert.deepEqual(s.notes,old.notes);assert.deepEqual(s.assessments[0].marks,old.assessments[0].marks);assert.equal(s.attendance.length+s.legacyAttendance.length,old.attendance.length);assert.equal(old.version,1);assert.equal(old.lessons[0].periodId,undefined);
 });
 test('v1 ambiguous or Excused rolls are retained without inventing period marks',()=>{
  const old=L.seed('2026-10-17');old.attendance[0].rows.s1.status='Excused';const s=D.migrate(old,'2026-10-17');assert.equal(s.attendance.length,0);assert.equal(s.legacyAttendance[0].rows.s1.status,'Excused');assert.deepEqual(D.parseBackup(JSON.stringify(s)),s);
@@ -76,7 +76,7 @@ test('plans use date/class/period keys; saved plans survive timetable changes',(
 test('period time edits flow through every dated timetable session',()=>{
  const s=seeded();s.periods[1].start='09:05';s.periods[1].end='09:45';D.validateState(s);const l=lesson(s);assert.equal(l.start,'09:05');assert.equal(l.end,'09:45');assert.equal(D.sessionsOn(s,'2026-10-26').find(l=>l.classId==='c1').start,'09:05');
 });
-test('version 1 storage upgrades in memory and persists version 3 on the next save',()=>{
- const old=L.seed('2026-10-17'),storage={raw:JSON.stringify(old),getItem(){return this.raw},setItem(_key,v){this.raw=v}},store=new D.Store(storage);assert.equal(store.data.version,3);assert.equal(JSON.parse(storage.raw).version,1);store.commit(s=>s.settings.theme='ocean');assert.equal(JSON.parse(storage.raw).version,3);assert.equal(new D.Store(storage).data.settings.theme,'ocean');
+test('version 1 storage upgrades in memory and persists version 4 on the next save',()=>{
+ const old=L.seed('2026-10-17'),storage={raw:JSON.stringify(old),getItem(){return this.raw},setItem(_key,v){this.raw=v}},store=new D.Store(storage);assert.equal(store.data.version,4);assert.equal(JSON.parse(storage.raw).version,1);store.commit(s=>s.settings.theme='ocean');assert.equal(JSON.parse(storage.raw).version,4);assert.equal(new D.Store(storage).data.settings.theme,'ocean');
 });
 

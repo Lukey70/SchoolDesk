@@ -8,8 +8,8 @@ const memory=()=>({raw:null,getItem(){return this.raw},setItem(k,v){this.raw=v}}
 
 test('v2 upgrade keeps original bytes and preserves all scores and roll records',()=>{
  const old=V2.seed('2026-10-17'),raw=JSON.stringify(old),storage=memory();storage.raw=raw;const store=new D.Store(storage);
- assert.equal(storage.raw,raw);assert.equal(store.data.version,3);assert.deepEqual(store.data.attendance,old.attendance);assert.deepEqual(store.data.assessments[0].marks,old.assessments[0].marks);
- assert.equal(store.data.classes[0].yearId,'');assert.equal(store.data.timetableVersions.length,1);store.commit(s=>s.settings.school='Upgraded');assert.equal(JSON.parse(storage.raw).version,3);assert.equal(old.version,2);
+ assert.equal(storage.raw,raw);assert.equal(store.data.version,4);assert.deepEqual(store.data.attendance,old.attendance);assert.deepEqual(store.data.assessments[0].marks,old.assessments[0].marks);
+ assert.equal(store.data.classes[0].yearId,'');assert.equal(store.data.timetableVersions.length,1);store.commit(s=>s.settings.school='Upgraded');assert.equal(JSON.parse(storage.raw).version,4);assert.equal(old.version,2);
 });
 test('v3 backups retain enrolments, colours, weightings and protected attendance',()=>{
  const s=seed();s.students[0].preferredName='Alex';s.classes[0].colour='colour36';D.archiveStudent(s,'s1','2026-11-01');D.reviseTimetable(s,'2026-11-02',rows=>rows[0].room='New room');s.assessments[0].weight=100;s.gradingModes['c1|y2026']='weighted';s.assessments[0].statuses.s1='Exempt';assert.deepEqual(D.parseBackup(JSON.stringify(s)),s);
@@ -56,10 +56,10 @@ test('all forty class colours are unique safe hex colours and survive validation
  assert.equal(Object.keys(D.PALETTE).length,40);assert.equal(new Set(Object.values(D.PALETTE)).size,40);for(const [key,value]of Object.entries(D.PALETTE)){assert.match(value,/^#[0-9a-f]{6}$/);const s=seed();s.classes[0].colour=key;D.validateState(s);}
 });
 test('automatic numbers skip collisions and ignore supplied numbers',()=>{
- const s=seed();s.students[0].code='sd000001';const rows=[{firstName:'A',lastName:'One',year:'9',homegroup:'9A',code:'Supplied'},{firstName:'B',lastName:'Two',year:'10',homegroup:'10B'}],added=D.addStudents(s,rows,'2026-10-19');assert.equal(added[0].code,'SD000002');assert.equal(added[1].code,'SD000003');D.validateState(s);
+ const s=seed();s.students[0].code='sd000001';const rows=[{firstName:'A',lastName:'One',year:'9',homegroup:'Jarrah',code:'Supplied'},{firstName:'B',lastName:'Two',year:'10',homegroup:'Tuart'}],added=D.addStudents(s,rows,'2026-10-19');assert.equal(added[0].code,'SD000002');assert.equal(added[1].code,'SD000003');D.validateState(s);
 });
 test('bulk add validates the entire batch before adding any rows',()=>{
- const s=seed(),before=JSON.stringify(s);assert.throws(()=>D.addStudents(s,[{firstName:'A',lastName:'One',year:'9',homegroup:'9A'},{firstName:'B',lastName:'',year:'9',homegroup:'9A'}],'2026-10-19'),/Row 2/);assert.equal(JSON.stringify(s),before);assert.throws(()=>D.addStudents(s,[]),/between/);
+ const s=seed(),before=JSON.stringify(s);assert.throws(()=>D.addStudents(s,[{firstName:'A',lastName:'One',year:'9',homegroup:'Jarrah'},{firstName:'B',lastName:'',year:'9',homegroup:'Jarrah'}],'2026-10-19'),/Row 2/);assert.equal(JSON.stringify(s),before);assert.throws(()=>D.addStudents(s,[]),/between/);
 });
 test('CSV and Excel student import recognises headers, preferred names and ignores numbers',()=>{
  const rows=D.studentImport('\uFEFFStudent number,First name,Last name,Year level,Home group,Preferred name\r\n123,Alex,Smith,9,9A,Lex\r\n456,"Jo, Anne",Jones,10,10B,Jo');assert.equal(rows.length,2);assert.equal(rows[0].preferredName,'Lex');assert.equal(rows[1].firstName,'Jo, Anne');assert.equal(rows[0].code,undefined);assert.equal(D.studentImport('Sam\tLee\t8\t8C')[0].homegroup,'8C');
@@ -104,7 +104,7 @@ test('undo and redo persist state and append intelligible change history',()=>{
  const storage=memory(),store=new D.Store(storage);store.commit(s=>s.settings.school='One',false,'School renamed');assert.equal(store.data.auditLog.at(-1).summary,'School renamed');assert.equal(store.data.auditLog.at(-1).changes[0].path,'settings.school');store.undo();assert.notEqual(store.data.settings.school,'One');assert.match(store.data.auditLog.at(-1).summary,/Undid/);store.redo();assert.equal(store.data.settings.school,'One');assert.equal(new D.Store(storage).data.settings.school,'One');assert.equal(new D.Store(storage).undoStack.length,0);
 });
 test('student numbers are not reused after undo, and new saves invalidate redo',()=>{
- const store=new D.Store(memory()),row={firstName:'New',lastName:'Student',year:'9',homegroup:'9A'};store.commit(s=>D.addStudents(s,[row]));const first=store.data.students.at(-1).code;store.undo();store.commit(s=>D.addStudents(s,[row]));assert.notEqual(store.data.students.at(-1).code,first);assert.throws(()=>store.redo(),/Nothing/);
+ const store=new D.Store(memory()),row={firstName:'New',lastName:'Student',year:'9',homegroup:'Jarrah'};store.commit(s=>D.addStudents(s,[row]));const first=store.data.students.at(-1).code;store.undo();store.commit(s=>D.addStudents(s,[row]));assert.notEqual(store.data.students.at(-1).code,first);assert.throws(()=>store.redo(),/Nothing/);
 });
 test('failed undo writes preserve both live state and undo stack',()=>{
  const storage=memory(),store=new D.Store(storage);store.commit(s=>s.settings.school='One');const before=JSON.stringify(store.data);storage.setItem=()=>{throw new Error('Quota')};assert.throws(()=>store.undo(),/Could not save/);assert.equal(JSON.stringify(store.data),before);assert.equal(store.undoStack.length,1);assert.equal(store.redoStack.length,0);
